@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Alt Copy Test Page</title>
+    <link rel="stylesheet" href="alt-copy-test.css" type="text/css">
+  </head>
+  <body>
+    <h1>Alt Copy Test Page</h1>
+    <div>
+      <label><input type="checkbox" id="interceptCopy"> Enable copy event interceptor</label>
+    </div>
+    <div>
+      <textarea placeholder="You can pase copied text here"></textarea>
+    </div>
+    <ul>
+      <li>Text with title: It happened
+        <span title="2021-10-15 18:50:03">2 hours ago</span>. </li>
+      <li><code>&lt;time&gt;</code> element: <time datetime=2021-10-23>1 day ago</time>.</li>
+      <li><code>&lt;data&gt;</code> element: <data value="12345">Textual representation</data>.</li>
+      <li>Meter <meter min="0" max="100" value="75" low="33" high="66" optimum="50">75</meter></li>
+      <li>Progress <progress max="100" value="75">75/100</progress></li>
+      <li>Selection <span class="disabled-selection">is disabled</span>.</li>
+      <li>Control characters
+        <span title="echo&#x08;&#x08;ls &#x09;&#x09;&#x0a;echo world">in the title attribute.</span></li>
+      <li>Image: <img alt="Broken image alt text"></li>
+    </ul>
+    <form>
+      <ul>
+        <li><label>Disabled input <input disabled value="Disabled Text"></label>
+        <li><label>Read-only input <input readonly value="Read-only Text"></label>
+        <li><label>Disabled with title
+            <input disabled title="Title of disable input" value="Disabled Text with title">
+          </label></li>
+        <li><label>Input with placeholder <input placeholder="Default text">
+          </label></li>
+        <li><label>Password <input type="password" value="qwerty"></label></li>
+        <li><label>Select
+            <select>
+              <option value="1st">First</option>
+              <option value="2nd">Second</option>
+              <optgroup label="Second Half">
+                <option value="3rd">Third</option>
+                <option value="4rth">Fourth</option>
+              </optgroup>
+            </select>
+          </label></li>
+        <li><label>Select multiple
+            <select multiple>
+              <optgroup label="First group">
+                <option>One</option>
+                <option>Two</option>
+                <option>Three</option>
+              </optgroup>
+              <option>Four</option>
+              <optgroup label="Second group">
+                <option>Five</option>
+                <option>Six</option>
+                <option>Seven</option>
+              </optgroup>
+            </select>
+          </label></li>
+        <li>Date <input type="date" value="2021-10-20" max="2021-12-31"></li>
+        <li>Date and time <input type="datetime-local" min="2010-01-01" value="2021-10-11T12:13:14"></li>
+        <li>Input <code>type="button"</code> <input type="button" value="input button">
+          <input type="submit"></li>
+        <li>Button element <button>Text of button element</button></li>
+        <li>Color <input type="color"></li>
+        <li>File <input type="file"></li>
+        <li>Range input <input type="range" min="-10" max="38"></li>
+        <li>Image input <input type="image" alt="Alt Image" src="../icons/alt-copy-16.png"></li>
+      </ul>
+    </form>
+    <iframe id="nestedFrame"></iframe>
+    <script>
+      function acpTestOnCopy(evt) {
+        try {
+          evt.stopImmediatePropagation();
+          evt.preventDefault();
+          evt.clipboardData.clearData();
+          evt.clipboardData.setData("text/plain", "Digital resctriction management in action");
+          evt.clipboardData.setData("text/html", "<strong>Copy is disabled</strong>");
+          alert("You are a pirate!");
+        } catch (ex) {
+          console.error("acpTestOnCopy: %o", ex);
+        }
+      }
+
+      var interceptCheckbox = document.getElementById("interceptCopy");
+      interceptCheckbox.addEventListener("change", function acpTestCopyInterceptor(evt) {
+        evt.preventDefault();
+        evt.stopImmediatePropagation();
+        const target = evt.target;
+        if (target.checked) {
+            document.addEventListener("copy", acpTestOnCopy, true);
+            console.log("acpTest: copy interceptor is installed");
+        } else {
+            document.removeEventListener("copy", acpTestOnCopy, true);
+            console.log("acpTest: copy interceptor is removed");
+        }
+      }, false);
+      if (interceptCheckbox.checked) {
+        // In Firefox checkbox state is persistent across reloads.
+        document.addEventListener("copy", acpTestOnCopy, true);
+        console.log("acpTest: copy interceptor is installed");
+      }
+      var nestedFrame = document.getElementById("nestedFrame");
+      if (!window.location.search) {
+        nestedFrame.src = window.location.href + "?noframe=1";
+        nestedFrame.height = document.documentElement.clientHeight + 10;
+      } else {
+        nestedFrame.height = 2;
+      }
+    </script>
+  </body>
+</html>

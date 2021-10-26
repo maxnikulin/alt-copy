@@ -1,0 +1,102 @@
+
+#+title: AltCopy Firefox Add-on
+
+* Copy tooltip text
+
+#+attr_html: :alt Screenshot of AltCopy Firefox add-on: tooltip for a page element, context menu item, that allows to copy it, and result of pasting to a text editor.
+#+attr_html: :style max-height: 50%; max-width: 100%;
+[[file:alt-copy-screenshot.png]]
+
+Some web pages are too aggressive trying to be friendly to visitors.
+You may want to copy some text snippet to your notes
+but it has date formatted as "3 hours ago" that will be completely
+useless several days, months, or even years later.
+Full date may be shown in tooltip but it is not easy to copy it.
+"Inspect" context menu option is a rescue but it requires enough
+mouse clicks to obtain text from browser developer tools.
+This extension adds context menu entry to copy text from "title"
+attribute of HTML element directly. 
+
+Other options are tried if there is no "title" attribute:
+- =alt= attribute mostly used for images,
+- chosen option of =<select>= element,
+- value of =<input>= element that is suitable for date, time, color, range, etc.
+  or its placeholder,
+- text of an element when selection is suppressed through CSS,
+- selected text, link target, or image source if nothing "better" is available.
+
+The extension tries to protect you from control characters in the text
+that may cause inserting of other text than you expect. There is no
+guarantee that such protection is reliable, so beware malicious sites.
+
+At first I found
+[[https://addons.mozilla.org/firefox/addon/copy-element-s-text/][Copy Element's text]]
+extension, source:
+[[https://github.com/utubo/firefox-copy_elements_text]]
+It rates text sources to copy in a different way.
+I borrowed some ideas from it though. Implementation details differ as well.
+
+If some element is located in a subframe, a request for clipboard permission
+and maybe for particular site is shown. If subframe belongs to the same
+site, it seems, request may be rejected. Without clipboard permission
+the add on may work less reliable though. In the add-on settings
+you can allow access to subframes from any site.
+
+Do not expect that any add-on can access content of privileged pages
+such as =about:about= or [[https://addons.mozilla.org/]].
+
+* Permissions
+
+As usually, add-on requires some permission to do its job.
+Open =about:addons= page (Add-ons item in the hamburger menu, =[Ctrl+Shift+A]=)
+and choose this add-on to grant or to revoke optional permissions.
+
+See [[https://support.mozilla.org//kb/permission-request-messages-firefox-extensions][Permission request messages for Firefox extensions]]
+for details.
+
+** Create context menu items (=menus=)
+# TODO Exact title.
+
+Mandatory permission since it is necessary to get which element
+should be inspected for alternative text somehow.
+
+** Access to content of current tab (=activeTab=)
+# TODO Exact title.
+
+Almost unavoidable permission for this extension.
+An alternative is to ask user in response to every invocation
+from context menu.
+
+** Input data to the clipboard (=clipboardWrite=)
+
+In Firefox this permission allows to put data to clipboard
+at *any* moment, that is why I am trying to avoid making
+this permission as a required one.
+
+Besides subframes, this permission is not really required.
+It seems, Firefox believes that ~document.execCommand("copy")~ is executed
+withing user action context only in main page of tab but not in child frames.
+
+** Access your data for all websites (=<all_urls>=)
+
+This permission is optional.
+It should be granted to copy text from any subframes.
+Otherwise permission for particular page will be requested
+on demand.
+
+* Complications with Chrome
+
+Due to lack of
+[[https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/menus/getTargetElement][browser.menus.getTargetElement]]
+(~contextMenus~) API method, it is necessary to inject
+a content script into every page frame to have active event listener
+when context menu is invoked. See
+[[https://github.com/mdn/webextensions-examples/blob/master/menu-remove-element/menusGetTargetElementPolyfill.js]]
+for an example of such approach.
+It is not implemented in this add-on.
+
+* License
+
+Mozilla Public License, v. 2.0.
+
+Copyright (C) 2021 Max Nikulin

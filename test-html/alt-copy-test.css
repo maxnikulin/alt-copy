@@ -1,0 +1,21 @@
+
+.disabled-selection {
+	user-select: none;
+	background-color: yellow;
+}
+*[title] {
+	background-color: pink;
+}
+img {
+	background-color: cyan;
+	border: 1pt solid black;
+	padding: 1ex;
+	margin: 1ex;
+	display: inline-block;
+}
+
+textarea, iframe {
+	display: block;
+	margin-inline: 10%;
+	width: 80%;
+}
