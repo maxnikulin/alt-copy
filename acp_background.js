@@ -324,7 +324,17 @@ function acpMenusListener(clickData, tab) {
 }
 
 function acpMain() {
-	browser.runtime.onInstalled.addListener(acpMenusCreate);
+	// Do not use
+	//
+	//     browser.runtime.onInstalled.addListener(acpMenusCreate);
+	//
+	// recommended in Chromium docs. It requires
+	//
+	//     { "background": { "persistent": false } }
+	//
+	// in `manifest.json`, however Firefox does not support event pages,
+	// so menu entries should be created each time when add-on is loading.
+	acpMenusCreate();
 	browser.menus.onClicked.addListener(acpMenusListener);
 }
 
