@@ -12,7 +12,7 @@ function acpMenusCreate() {
 			contexts: [ "all" ],
 			enabled: true,
 			id: "ACP_COPY",
-			title: "Copy alt &text",
+			title: "Copy alt te&xt",
 		},
 		function acpMenusCreateCallback() {
 			if (browser.runtime.lastError) {
