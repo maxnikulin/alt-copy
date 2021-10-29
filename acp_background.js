@@ -30,7 +30,7 @@ async function acpExecuteContentScript({tabId, frameId, targetElementId}) {
 	//
 	// It is better to avoid control characters since they
 	// could be accidentally pasted into terminal without proper protection.
-	// https://flask.palletsprojects.com/en/1.1.x/security/#copy-paste-to-terminal
+	// https://flask.palletsprojects.com/en/2.0.x/security/#copy-paste-to-terminal
 	// Copy/Paste to Terminal (in Security Considerations)
 	// https://security.stackexchange.com/questions/39118/how-can-i-protect-myself-from-this-kind-of-clipboard-abuse
 	// How can I protect myself from this kind of clipboard abuse?

@@ -28,6 +28,12 @@ Other options are tried if there is no "title" attribute:
 The extension tries to protect you from control characters in the text
 that may cause inserting of other text than you expect. There is no
 guarantee that such protection is reliable, so beware malicious sites.
+It seems modern bash versions have "bracketed paste" enabled by default
+to mitigate the issue. See Stack Exchange question from the security hub
+"[[https://security.stackexchange.com/questions/39118/how-can-i-protect-myself-from-this-kind-of-clipboard-abuse][How can I protect myself from this kind of clipboard abuse?]]"
+or recommendations to web developers in Security Considerations section
+of Flask framework documentation
+[[https://flask.palletsprojects.com/en/2.0.x/security/#copy-paste-to-terminal][Copy/Paste to Terminal]].
 
 At first I found
 [[https://addons.mozilla.org/firefox/addon/copy-element-s-text/][Copy Element's text]]
