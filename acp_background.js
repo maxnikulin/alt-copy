@@ -62,9 +62,9 @@ async function acpExecuteContentScript({tabId, frameId, targetElementId}) {
 	function acpCopyUsingEvent(text) {
 		// A page might install a handler earlier
 		let handlerInvoked = false;
+
 		function acpOnCopy(evt) {
 			try {
-				document.removeEventListener("copy", acpOnCopy, true);
 				evt.stopImmediatePropagation();
 				evt.preventDefault();
 				evt.clipboardData.clearData();
@@ -74,9 +74,15 @@ async function acpExecuteContentScript({tabId, frameId, targetElementId}) {
 			}
 			handlerInvoked = true;
 		}
-		document.addEventListener("copy", acpOnCopy, true);
 
-		const result = document.execCommand("copy");
+		let result;
+		try {
+			document.addEventListener("copy", acpOnCopy, true);
+			result = document.execCommand("copy");
+		} finally {
+			document.removeEventListener("copy", acpOnCopy, true);
+		}
+
 		if (!result) {
 			console.log("acp: Copy using command and event listener failed");
 		} else if (!handlerInvoked) {
