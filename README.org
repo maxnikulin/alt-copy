@@ -3,6 +3,9 @@
 
 * Copy tooltip text
 
+Install AltCopy browser extension from
+[[https://addons.mozilla.org/firefox/addon/altcopy/][addons.mozilla.org]]
+
 #+attr_html: :alt Screenshot of AltCopy Firefox add-on: tooltip for a page element, context menu item, that allows to copy it, and result of pasting to a text editor.
 #+attr_html: :style max-height: 50%; max-width: 100%;
 [[file:alt-copy-screenshot.png]]
