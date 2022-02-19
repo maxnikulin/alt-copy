@@ -25,6 +25,21 @@
         <span title="echo&#x08;&#x08;ls &#x09;&#x09;&#x0a;echo world">in the title attribute.</span></li>
       <li>Image: <img alt="Broken image alt text"></li>
     </ul>
+    <h2 id="time-extensions"><code>&lt;time&gt;</code> element extensions</h2>
+    <p>See <a
+      title="project repository at GitHub"
+      href="https://github.com/github/time-elements">https://github.com/github/time-elements</a></p>
+    <ul>
+      <li><code>&lt;relative-time datetime="2014-04-01T16:30:00-08:00"&gt;</code>:
+        <relative-time datetime="2014-04-01T16:30:00-08:00">April 1, 2014</relative-time>.</li>
+      <li><code>&lt;time-until datetime="2024-05-02T16:30:00-08:00"&gt;</code>:
+        <time-until datetime="2024-05-02T16:30:00-08:00">May 2, 2024</time-until>.</li>
+      <li><code>&lt;time-ago datetime="2012-06-03T16:30:00-08:00" format="micro"&gt;</code>:
+        <time-ago datetime="2012-06-03T16:30:00-08:00" format="micro">June 3, 2012</time-ago>.</li>
+      <li><code>&lt;local-time datetime="2015-07-04T16:30:00-08:00"&gt;</code>:
+        <local-time datetime="2015-07-04T16:30:00-08:00">July 4, 2015 4:30PM PDT</local-time>.</li>
+    </ul>
+    <h2 id="form">Form input elements</h2>
     <form>
       <ul>
         <li><label>Disabled input <input disabled value="Disabled Text"></label>
@@ -71,6 +86,7 @@
         <li>Image input <input type="image" alt="Alt Image" src="../icons/alt-copy-16.png"></li>
       </ul>
     </form>
+    <h2 id="frame">Frame</h2>
     <iframe id="nestedFrame"></iframe>
     <script>
       function acpTestOnCopy(evt) {

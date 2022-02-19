@@ -176,7 +176,9 @@ async function acpExecuteContentScript({tabId, frameId, targetElementId}) {
 			}
 		}
 
-		if (nodeName === "TIME") {
+		// <time> and https://github.com/github/time-elements extensions
+		const timeElements = [ "time", "relative-time", "local-time", "time-until", "time-ago" ];
+		if (timeElements.indexOf(nodeName.toLowerCase()) >= 0) {
 			text = element.getAttribute("datetime");
 		}
 		if (text) {
