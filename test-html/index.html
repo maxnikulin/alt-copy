@@ -39,6 +39,18 @@
       <li><code>&lt;local-time datetime="2015-07-04T16:30:00-08:00"&gt;</code>:
         <local-time datetime="2015-07-04T16:30:00-08:00">July 4, 2015 4:30PM PDT</local-time>.</li>
     </ul>
+    <h2 id="wrapper">Text attribute of a wrapping element</h2>
+    <ul>
+      <li>A link with no title inside a <code>&lt;span&gt;</code>
+        with <span class="nested" title="Title of span"><a href="#">title</a></span>.</li>
+      <li>A link with no title inside a <code>&lt;span&gt;</code>
+        with <span class="nested" title="Title of span with spaces">
+          <a href="#">title</a>	</span>,
+        some spaces around <code>&lt;a&gt;</code>.</li>
+      <li>Span with title around a link contains
+        <span class="nested" title="Title of span with other text">some more
+          <a href="#">text</a></span>.</li>
+    </ul>
     <h2 id="form">Form input elements</h2>
     <form>
       <ul>
