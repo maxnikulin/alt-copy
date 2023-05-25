@@ -7,9 +7,20 @@
   </head>
   <body>
     <h1>Alt Copy Test Page</h1>
-    <div>
-      <label><input type="checkbox" id="interceptCopy"> Enable copy event interceptor</label>
-    </div>
+    <form id="formInterceptor">
+      <ul>
+        <li><label><input type="checkbox" id="interceptCopy">
+            Enable copy event interceptor</label></li>
+        <li><label><input type="checkbox" id="checkboxLog" checked>
+            Log copy event to console</li>
+        <li><label><input type="checkbox" id="checkboxOverwrite" checked>
+            Overwrite data</li>
+        <li><label><input type="checkbox" id="checkboxAlert">
+            Alert popup</li>
+        <li><label><input type="checkbox" id="checkboxStop">
+            Stop propagation</li>
+      </ul>
+    </form>
     <div>
       <textarea placeholder="You can pase copied text here"></textarea>
     </div>
@@ -98,39 +109,79 @@
         <li>Image input <input type="image" alt="Alt Image" src="../icons/alt-copy-16.png"></li>
       </ul>
     </form>
+    <h2>Input fields with handlers</h2>
+        <ul>
+          <li><input type="text" id="inputWithCopyListener">
+            With copy event listener.</li>
+          <li><input type="text" id="inputWithBlurListener">
+            With blur event listener.</li>
+        </ul>
     <h2 id="frame">Frame</h2>
     <iframe id="nestedFrame"></iframe>
     <script>
-      function acpTestOnCopy(evt) {
-        try {
-          evt.stopImmediatePropagation();
-          evt.preventDefault();
-          evt.clipboardData.clearData();
-          evt.clipboardData.setData("text/plain", "Digital resctriction management in action");
-          evt.clipboardData.setData("text/html", "<strong>Copy is disabled</strong>");
-          alert("You are a pirate!");
-        } catch (ex) {
-          console.error("acpTestOnCopy: %o", ex);
-        }
+      var formInterceptor = document.getElementById("formInterceptor");
+      function acpTestMakeOnCopyListener(name) {
+        // a trick to set `displayName` for debugger
+        const funcName = "acpTestOnCopy_" + name;
+        return {
+          [funcName]: function (evt) {
+            try {
+              if (formInterceptor.checkboxLog.checked) {
+                console.log("%o %o %o", name, evt.type, evt.target);
+              }
+              if (formInterceptor.checkboxStop.checked) {
+                evt.stopImmediatePropagation();
+                evt.preventDefault();
+              }
+              if (formInterceptor.checkboxOverwrite.checked) {
+                evt.clipboardData.clearData();
+                evt.clipboardData.setData("text/plain", `Overwritten by ${name}`);
+                evt.clipboardData.setData("text/html", `Overwritten by <strong>${name}</strong>`);
+              }
+              if (formInterceptor.checkboxAlert.checked) {
+                alert(`Copy event handler: ${name}`);
+              }
+            } catch (ex) {
+              console.error("acpTestOnCopy: %o", ex);
+            }
+          },
+        }[funcName];
       }
 
       var interceptCheckbox = document.getElementById("interceptCopy");
-      interceptCheckbox.addEventListener("change", function acpTestCopyInterceptor(evt) {
+      var listeners = [];
+      const eventName = "copy";
+      function acpTestEnableListeners() {
+        function acpTestAddListener(target, name, capture) {
+          const listener = acpTestMakeOnCopyListener(name);
+          const options = { capture };
+          target.addEventListener(eventName, listener, options);
+          listeners.push([target, listener, options]);
+        }
+
+        acpTestAddListener(document, "docCapture", true);
+        acpTestAddListener(document, "docNoCaptr", false);
+        acpTestAddListener(window, "winCapture", true);
+        acpTestAddListener(window, "winNoCaptr", false);
+        console.log("acpTest: copy interceptor is installed");
+      }
+      interceptCheckbox.addEventListener("change",
+      function acpTestCopyInterceptor(evt) {
         evt.preventDefault();
         evt.stopImmediatePropagation();
         const target = evt.target;
         if (target.checked) {
-            document.addEventListener("copy", acpTestOnCopy, true);
-            console.log("acpTest: copy interceptor is installed");
+          acpTestEnableListeners();
         } else {
-            document.removeEventListener("copy", acpTestOnCopy, true);
-            console.log("acpTest: copy interceptor is removed");
+          for (const [ target, listener, options ] of listeners) {
+            target.removeEventListener(eventName, listener, options);
+          }
+          console.log("acpTest: copy interceptor is removed");
         }
       }, false);
       if (interceptCheckbox.checked) {
         // In Firefox checkbox state is persistent across reloads.
-        document.addEventListener("copy", acpTestOnCopy, true);
-        console.log("acpTest: copy interceptor is installed");
+        acpTestEnableListeners();
       }
       var nestedFrame = document.getElementById("nestedFrame");
       if (!window.location.search) {
@@ -139,6 +190,19 @@
       } else {
         nestedFrame.height = 2;
       }
+
+      var inputWithBlurListener = document.getElementById("inputWithBlurListener");
+      inputWithBlurListener.addEventListener("blur", function acpTestBlurListener(evt) {
+        const { target } = evt;
+        const { length } = target.value.split(/\s+/);
+        target.value = `${length} ${target.value} ${length}`;
+      });
+
+      var inputWithCopyListener = document.getElementById("inputWithCopyListener");
+      inputWithCopyListener.addEventListener(
+        "copy", acpTestMakeOnCopyListener("elmCapture"), { capture: true });
+      inputWithCopyListener.addEventListener(
+        "copy", acpTestMakeOnCopyListener("elmNoCaptr"), { capture: false });
     </script>
   </body>
 </html>
