@@ -76,11 +76,12 @@ async function acpExecuteContentScript({tabId, frameId, targetElementId}) {
 		}
 
 		let result;
+		const listenerOptions = { capture: true };
 		try {
-			document.addEventListener("copy", acpOnCopy, true);
+			window.addEventListener("copy", acpOnCopy, listenerOptions);
 			result = document.execCommand("copy");
 		} finally {
-			document.removeEventListener("copy", acpOnCopy, true);
+			window.removeEventListener("copy", acpOnCopy, listenerOptions);
 		}
 
 		if (!result) {
