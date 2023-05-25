@@ -11,7 +11,7 @@
 	},
 	"author": "Max Nikulin",
 	"homepage_url": "https://github.com/maxnikulin/alt-copy",
-	"permissions": [ "menus", "activeTab" ],
+	"permissions": [ "menus", "activeTab", "scripting" ],
 	"optional_permissions": [ "<all_urls>", "clipboardWrite" ],
 	"background": {
 		"scripts": [ "acp_background.js" ]
@@ -19,7 +19,7 @@
 	"applications": {
 		"gecko": {
 			"id": "alt-copy@maxnikulin.github.io",
-			"strict_min_version": "78.0"
+			"strict_min_version": "102.0"
 		}
 	}
 }

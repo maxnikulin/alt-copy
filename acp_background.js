@@ -22,42 +22,11 @@ function acpMenusCreate() {
 	);
 }
 
-async function acpExecuteContentScript({tabId, frameId, targetElementId}) {
+async function acpContentScript(targetElementId) {
 	// `value` field is queried to support various non-text elements
 	// such as `<meter>`, `<progress>`, and inputs which content
 	// is not directly selectable: date and time, color. file, range
 	// https://developer.mozilla.org/en-US/docs/Learn/Forms/Other_form_controls#other_form_features
-	//
-	// It is better to avoid control characters since they
-	// could be accidentally pasted into terminal without proper protection.
-	// https://flask.palletsprojects.com/en/2.0.x/security/#copy-paste-to-terminal
-	// Copy/Paste to Terminal (in Security Considerations)
-	// https://security.stackexchange.com/questions/39118/how-can-i-protect-myself-from-this-kind-of-clipboard-abuse
-	// How can I protect myself from this kind of clipboard abuse?
-	//
-	// 1. Replace TAB with 8 spaces to avoid accidental activation of completion
-	//    if pasted to bash (dubious).
-	// 2. Other control characters should be replaced.
-	//    U+FFFD REPLACEMENT CHARACTER
-	//    used to replace an unknown, unrecognized or unrepresentable character
-	// 3. U+FEFF BYTE ORDER MARK that is likely trash in HTML files
-	//    been a space character it may not occupy space in applications.
-	//    Maybe there are more similar characters.
-	//
-	// Unsure whether newlines \r and \n should be normalized. 
-	// Hope new macs uses "\n", not "\r". `runtime.getPlatformInfo()` `os`
-	// field may be used as a hint.
-	//
-	// Setting `document.oncopy` can not overwrite `copy` event listener installed
-	// earlier by the web page. `navigator.clipboard.writeText` is not succeptible
-	// to this problem but it is an asynchronous function, so if it is tried
-	// at first then copy using `copy` event runs out of user action context.
-	const code = `
-"use strict";
-
-// Value of expession is inspected by the caller.
-(function acpContentScript() {
-	var acpTargetElementId = ${targetElementId};
 
 	function acpCopyUsingEvent(text) {
 		// A page might install a handler earlier
@@ -203,47 +172,101 @@ async function acpExecuteContentScript({tabId, frameId, targetElementId}) {
 		return undefined;
 	}
 
+	// It is better to avoid control characters since they
+	// could be accidentally pasted into terminal without proper protection.
+	// https://flask.palletsprojects.com/en/2.0.x/security/#copy-paste-to-terminal
+	// Copy/Paste to Terminal (in Security Considerations)
+	// https://security.stackexchange.com/questions/39118/how-can-i-protect-myself-from-this-kind-of-clipboard-abuse
+	// How can I protect myself from this kind of clipboard abuse?
+	//
+	// 1. Replace TAB with 8 spaces to avoid accidental activation of completion
+	//    if pasted to bash (dubious).
+	// 2. Other control characters should be replaced.
+	//    U+FFFD REPLACEMENT CHARACTER
+	//    used to replace an unknown, unrecognized or unrepresentable character
+	// 3. U+FEFF BYTE ORDER MARK that is likely trash in HTML files
+	//    been a space character it may not occupy space in applications.
+	//    Maybe there are more similar characters.
+	//
+	// Unsure whether newlines \r and \n should be normalized. 
+	// Hope new macs uses "\n", not "\r". `runtime.getPlatformInfo()` `os`
+	// field may be used as a hint.
 	function acpReplaceSpecial(text) {
 		return text.replace(/\t/g, '        ').
-			replace(/[\\x00-\\x09\\x0B\\x0C\\x0E-\\x1F\\x7F-\\x9F\\uFEFF]/g, "\\uFFFD");
+			replace(/[\x00-\x09\x0B\x0C\x0E-\x1F\x7F-\x9F\uFEFF]/g, "\uFFFD");
 	}
 
-	function acpAction() {
-		let text = acpGetText(acpTargetElementId) || acpGetSelection();
+	async function acpAction(targetElementId) {
+		let text = acpGetText(targetElementId) || acpGetSelection();
 		if (!text) {
 			// Suppress retry with granted permissions.
 			return "NO_TEXT_FOUND";
 		}
 		text = acpReplaceSpecial(text);
 		// console.log("acp: copy %o", JSON.stringify(text)); // debug
+
+		// Setting `document.oncopy` can not overwrite `copy` event listener installed
+		// earlier by the web page. `navigator.clipboard.writeText` is not succeptible
+		// to this problem but it is an asynchronous function, so if it is tried
+		// at first then copy using `copy` event runs out of user action context.
 		if (acpCopyUsingEvent(text)) {
 			return "COPY_EVENT_SUCCESS";
 		}
 		if (!navigator.clipboard) {
 			return false;
 		}
-		// Returning promise from content script does not work in Chrome.
-		return navigator.clipboard.writeText(text).then(_ => {
-			// _ is undefined
+		try {
+			await navigator.clipboard.writeText(text)
 			return "NAVIGATOR_CLIPBOARD_SUCCESS";
-		}).catch(ex => {
-			// By default the exception is not reported to the page console
-			// and background script does not receive it due to a serialization error
-			// ("Error: Promise rejection value is a non-unwrappable cross-compartment wrapper").
+		} catch(ex) {
 			console.error(
 				"acp: navigator.clipboard.writeText failed: %o",
 				ex || "navigator.clipboard.writeText failed");
-			throw ex;
-		});
+			// Firefox-113 `scripting.executeScript` throws
+			//
+			//     Error {
+			//         name: "Error",
+			//         message: "Script '<anonymous code>' result is non-structured-clonable data"
+			//     }
+			//
+			// in the case of ex
+			//
+			//     DOMException {
+			//         name: "NotAllowedError",
+			//         message: "Clipboard write was blocked due to lack of user activation.",
+			//     }
+			//
+			// when context menu is invoked using `[Shift+F10]` shortcut instead of mouse click.
+			const error = new Error(ex.message);
+			error.stack = ex.stack;
+			// ignored
+			error.name = ex.constructor?.name ?? ex.name;
+			throw error;
+		};
 	}
 
-	return acpAction();
-})();
-`;
+	return await acpAction(targetElementId);
+}
 
+async function acpExecuteContentScript({tabId, frameId, targetElementId}) {
 	try {
-		const scriptResult = await browser.tabs.executeScript( tabId, { code, frameId });
-		return scriptResult && scriptResult[0];
+		const injectionResult = await browser.scripting.executeScript({
+			target: { tabId, frameIds: [ frameId ] },
+			func: acpContentScript,
+			args: [ targetElementId ],
+		});
+		if (!Array.isArray(injectionResult) || injectionResult.length !== 1) {
+			console.warn(
+				"acp: scripting.executeScript returned not an Array(1): %o",
+				injectionResult);
+			return;
+		}
+		const scriptResult = injectionResult?.[0];
+		const error = scriptResult?.error;
+		if (error !== undefined) {
+			throw error;
+		}
+		return scriptResult?.result;
 	} catch (ex) {
 		console.error("acp: content script error: %o", ex);
 	}
