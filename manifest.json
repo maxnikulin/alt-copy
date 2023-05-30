@@ -14,7 +14,10 @@
 	"permissions": [ "menus", "activeTab", "scripting" ],
 	"optional_permissions": [ "<all_urls>", "clipboardWrite" ],
 	"background": {
-		"scripts": [ "acp_background.js" ]
+		"scripts": [
+			"acp_cs_extract.js",
+			"acp_background.js"
+		]
 	},
 	"applications": {
 		"gecko": {

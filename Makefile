@@ -1,7 +1,7 @@
 
 ICONS_SRC += icons/alt-copy-16.png icons/alt-copy-48.png
 ICONS_SRC += icons/alt-copy-32.png icons/alt-copy-96.png
-BACKGROUND_SRC = acp_background.js
+BACKGROUND_SRC = acp_cs_extract.js acp_background.js
 
 firefox-dist:
 	set -e ; \
