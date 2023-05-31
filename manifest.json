@@ -15,6 +15,7 @@
 	"optional_permissions": [ "<all_urls>", "clipboardWrite" ],
 	"background": {
 		"scripts": [
+			"acp_cs_copy.js",
 			"acp_cs_extract.js",
 			"acp_background.js"
 		]

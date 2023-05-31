@@ -43,11 +43,56 @@ async function acpExecuteContentScript(injectionTarget) {
 	}
 }
 
-async function acpCopy(clickData, tab) {
+async function acpExtractAndCopy(clickData, tab) {
 	const { targetElementId, frameId } = clickData;
+	const target = { tabId: tab.id, frameIds: [ frameId ] };
+	let selection;
+	try {
+		selection = await acpExecuteContentScript({
+			target,
+			func: acpContentScriptExtract,
+			args: [ targetElementId ?? null ],
+		});
+	} catch (ex) {
+		console.error("acp: error while trying content script: %o", ex);
+	}
+	if (!selection) {
+		console.log("acp: fallback to selection text");
+		selection = clickData.selectionText || clickData.linkText ||
+			clickData.linkUrl || clickData.srcUrl;
+	}
+	if (!selection) {
+		console.log("acp: Nothing extracted");
+		return;
+	}
+	selection = acpReplaceSpecial(selection);
+	try {
+		const scriptResult = await acpExecuteContentScript({
+			target,
+			func: acpContentScriptCopy,
+			args: [ selection ],
+		});
+		if (scriptResult) {
+			return scriptResult;
+		}
+	} catch (ex) {
+		console.error("acp: error while trying content script: %o", ex);
+	}
+	try {
+		// https://bugzilla.mozilla.org/show_bug.cgi?id=1670252
+		// Bug 1670252 navigator.clipboard.writeText rejects with undefined as rejection value
+		// Fixed in Firefox-85
+		await navigator.clipboard.writeText(selection);
+		return "BACKGROUND_NAVIGATOR_CLIPBOARD";
+	} catch (ex) {
+		console.warn("acp: navigator.clipboard.writeText failed: %o", ex);
+	}
+}
+
+async function acpCopy(clickData, tab) {
 	let permissionsPromise;
 	try {
-		if (tab.url && frameId) {
+		if (tab.url && clickData.frameId) {
 			permissionsPromise = browser.permissions.request({
 				permissions: [ "clipboardWrite" ],
 				origins: [ tab.url ],
@@ -56,53 +101,22 @@ async function acpCopy(clickData, tab) {
 	} catch (ex) {
 		console.error("acp: attExecuteContentScript: ignore error: %o", ex);
 	}
-	// No await should be before `document.execCommand("copy")` otherwise
-	// user context action will be lost. That is why the only way to
-	// synchronously pass target element ID is to put into the script.
-	// So the code can not be run from a content script file.
-	
-	const target = { tabId: tab.id, frameIds: [ frameId ] };
-	try {
-		let scriptResult = await acpExecuteContentScript({
-			target,
-			func: acpContentScript,
-			args: [ targetElementId ?? null ],
-		});
-		if (scriptResult) {
-			return;
-		}
-		// Try once more if permissions are granted and early attempt failed.
-		if (permissionsPromise && await permissionsPromise) {
-			console.error("acp: retrying content script with granted permissions");
-			let scriptResult = await acpExecuteContentScript({
-				target,
-				func: acpContentScript,
-				args: [ targetElementId ?? null ],
-			});
-		}
-		if (scriptResult) {
-			return;
-		}
-	} catch (ex) {
-		console.error("acp: error while trying content script: %o", ex);
-	}
-	console.log("acp: fallback to selection text");
-	const selection = clickData.selectionText || clickData.linkText ||
-		clickData.linkUrl || clickData.srcUrl;
-	if (!selection) {
+	if (await acpExtractAndCopy(clickData, tab)) {
 		return;
 	}
-	try {
-		// https://bugzilla.mozilla.org/show_bug.cgi?id=1670252
-		// Bug 1670252 navigator.clipboard.writeText rejects with undefined as rejection value
-		// Fixed in Firefox-85
-		await navigator.clipboard.writeText(acpReplaceSpecial(selection));
-	} catch (ex) {
-		if (ex === undefined) {
-			throw new Error("navigator.clipboard.writeText failed");
+	
+	// Try once more if permissions are granted and early attempt failed.
+	if (permissionsPromise) {
+		if (!(await permissionsPromise)) {
+			console.log("acp: permission request declined");
+			return;
 		}
-		throw ex;
+		console.log("acp: retrying content script with granted permissions");
+		if (await acpExtractAndCopy(clickData, tab)) {
+			return;
+		}
 	}
+	throw new Error("Failed to copy");
 }
 
 function acpReplaceSpecial(text) {
