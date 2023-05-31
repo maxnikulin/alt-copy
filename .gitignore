@@ -1,2 +1,6 @@
+*.xpi
+# vim
 *~
 .*.swp
+# emacs
+.dir-locals-2.el
