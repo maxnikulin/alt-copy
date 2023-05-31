@@ -22,13 +22,10 @@ function acpMenusCreate() {
 	);
 }
 
-async function acpExecuteContentScript({tabId, frameId, targetElementId}) {
+async function acpExecuteContentScript(injectionTarget) {
 	try {
-		const injectionResult = await browser.scripting.executeScript({
-			target: { tabId, frameIds: [ frameId ] },
-			func: acpContentScript,
-			args: [ targetElementId ],
-		});
+		const injectionResult
+			= await browser.scripting.executeScript(injectionTarget);
 		if (!Array.isArray(injectionResult) || injectionResult.length !== 1) {
 			console.warn(
 				"acp: scripting.executeScript returned not an Array(1): %o",
@@ -64,17 +61,24 @@ async function acpCopy(clickData, tab) {
 	// synchronously pass target element ID is to put into the script.
 	// So the code can not be run from a content script file.
 	
+	const target = { tabId: tab.id, frameIds: [ frameId ] };
 	try {
-		let scriptResult = await acpExecuteContentScript(
-			{ tabId: tab.id, frameId, targetElementId });
+		let scriptResult = await acpExecuteContentScript({
+			target,
+			func: acpContentScript,
+			args: [ targetElementId ?? null ],
+		});
 		if (scriptResult) {
 			return;
 		}
 		// Try once more if permissions are granted and early attempt failed.
 		if (permissionsPromise && await permissionsPromise) {
 			console.error("acp: retrying content script with granted permissions");
-			let scriptResult = await acpExecuteContentScript(
-				{ tabId: tab.id, frameId, targetElementId });
+			let scriptResult = await acpExecuteContentScript({
+				target,
+				func: acpContentScript,
+				args: [ targetElementId ?? null ],
+			});
 		}
 		if (scriptResult) {
 			return;
