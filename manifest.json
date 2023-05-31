@@ -1,7 +1,7 @@
 {
 	"manifest_version": 2,
 	"name": "AltCopy",
-	"version": "0.3",
+	"version": "0.4.0",
 	"description": "Context menu item to copy tooltip text (\"title\" attribute), \"alt\" image description, value of date input field, etc. to struggle with pages pretending to be friendly with text like \"7 days ago\" when you need actual date from tooltip for your notes.",
 	"icons": {
 		"16": "icons/alt-copy-16.png",
