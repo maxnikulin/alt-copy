@@ -165,42 +165,10 @@ function acpContentScriptExtract(targetElementId) {
 	function acpGetSelection() {
 		const selection = window.getSelection();
 		return selection && !selection.isCollapsed && selection.toString() || undefined;
-		return undefined;
-	}
-
-	// It is better to avoid control characters since they
-	// could be accidentally pasted into terminal without proper protection.
-	// https://flask.palletsprojects.com/en/2.0.x/security/#copy-paste-to-terminal
-	// Copy/Paste to Terminal (in Security Considerations)
-	// https://security.stackexchange.com/questions/39118/how-can-i-protect-myself-from-this-kind-of-clipboard-abuse
-	// How can I protect myself from this kind of clipboard abuse?
-	//
-	// 1. Replace TAB with 8 spaces to avoid accidental activation of completion
-	//    if pasted to bash (dubious).
-	// 2. Other control characters should be replaced.
-	//    U+FFFD REPLACEMENT CHARACTER
-	//    used to replace an unknown, unrecognized or unrepresentable character
-	// 3. U+FEFF BYTE ORDER MARK that is likely trash in HTML files
-	//    been a space character it may not occupy space in applications.
-	//    Maybe there are more similar characters.
-	//
-	// Unsure whether newlines \r and \n should be normalized. 
-	// Hope new macs uses "\n", not "\r". `runtime.getPlatformInfo()` `os`
-	// field may be used as a hint.
-	function acpReplaceSpecial(text) {
-		return text.replace(/\t/g, '        ').
-			replace(/[\x00-\x09\x0B\x0C\x0E-\x1F\x7F-\x9F\uFEFF]/g, "\uFFFD");
 	}
 
 	function acpScriptExtract(targetElementId) {
-		let text = acpGetText(targetElementId) || acpGetSelection();
-		if (!text) {
-			return "";
-		}
-		text = acpReplaceSpecial(text);
-		// console.log("acp: copy %o", JSON.stringify(text)); // debug
-
-		return text;
+		return acpGetText(targetElementId) || acpGetSelection() || "";
 	}
 
 	try {
