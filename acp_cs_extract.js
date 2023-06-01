@@ -6,6 +6,52 @@
 "use strict";
 
 function acpContentScriptExtract(targetElementId) {
+	/* `acpContentScriptCopy` contains a copy of `acpErrorToObject`.
+	 * Content script functions must be self-contained,
+	 * so code duplication is unavoidable.
+	 *
+	 * Convert `Error` to plain `Object`
+	 *
+	 * <https://bugzilla.mozilla.org/1835058>
+	 * Firefox-113 `scripting.executeScript` throws
+	 *
+	 *     Error {
+	 *         name: "Error",
+	 *         message: "Script '<anonymous code>' result is non-structured-clonable data"
+	 *     }
+	 *
+	 * in the case of ex
+	 *
+	 *     DOMException {
+	 *         name: "NotAllowedError",
+	 *         message: "Clipboard write was blocked due to lack of user activation.",
+	 *     }
+	 *
+	 * when context menu is invoked using `[Shift+F10]` shortcut instead of mouse click.
+	 *
+	 * Firefox-102 can not pass to background script even `Error` objects.
+	 */
+	function acpErrorToObject(error) {
+		try {
+			if (error == null || typeof error === "string") {
+				return error;
+			} else if (typeof error.message !== "string") {
+				return {
+					string: String(error),
+					objectToString: Object.prototype.toString.call(error),
+				};
+			}
+			const { name, message, fileName, lineNumber, columnNumber } = error;
+			return {
+				name, message, fileName, lineNumber, columnNumber,
+				constructorName: error.constructor?.name
+			};
+		} catch (ex) {
+			console.error(ex);
+			return String(ex);
+		}
+	}
+
 	// `value` field is queried to support various non-text elements
 	// such as `<meter>`, `<progress>`, and inputs which content
 	// is not directly selectable: date and time, color. file, range
@@ -157,5 +203,9 @@ function acpContentScriptExtract(targetElementId) {
 		return text;
 	}
 
-	return acpScriptExtract(targetElementId);
+	try {
+		return { result: acpScriptExtract(targetElementId) };
+	} catch (ex) {
+		return { error: acpErrorToObject(ex) };
+	}
 }

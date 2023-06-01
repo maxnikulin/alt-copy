@@ -24,22 +24,36 @@ function acpMenusCreate() {
 
 async function acpExecuteContentScript(injectionTarget) {
 	try {
-		const injectionResult
+		const resultArray
 			= await browser.scripting.executeScript(injectionTarget);
-		if (!Array.isArray(injectionResult) || injectionResult.length !== 1) {
+		if (!Array.isArray(resultArray) || resultArray.length !== 1) {
 			console.warn(
-				"acp: scripting.executeScript returned not an Array(1): %o",
-				injectionResult);
-			return;
+				"acp: scripting.executeScript(%): returned not an Array(1): %o",
+				injectionTarget, resultArray);
+			return { error: new TypeError("Unexpected executeScript return value") };
 		}
-		const scriptResult = injectionResult?.[0];
-		const error = scriptResult?.error;
+		const injectionResult = resultArray?.[0];
+		if (injectionResult === undefined) {
+			// https://bugzilla.mozilla.org/1824901
+			// "WebExtensions scripting.executeScript() returns [undefined] array for about:debugging page"
+			return { error: new Error("Content script injection failed: privileged content") };
+		}
+		const error = injectionResult?.error;
 		if (error !== undefined) {
-			throw error;
+			return { error };
 		}
-		return scriptResult?.result;
+		const scriptResult = injectionResult?.result;
+		if (
+			scriptResult != null
+			&& ("result" in scriptResult) || ("error" in scriptResult)
+		) {
+			return scriptResult;
+		} else {
+			console.warn("acp: content script return value is not result/error object: %o", scriptResult);
+			return { result: scriptResult };
+		}
 	} catch (ex) {
-		console.error("acp: content script error: %o", ex);
+		return { error: ex };
 	}
 }
 
@@ -48,11 +62,15 @@ async function acpExtractAndCopy(clickData, tab) {
 	const target = { tabId: tab.id, frameIds: [ frameId ] };
 	let selection;
 	try {
-		selection = await acpExecuteContentScript({
+		const extractRetval = await acpExecuteContentScript({
 			target,
 			func: acpContentScriptExtract,
 			args: [ targetElementId ?? null ],
 		});
+		selection = extractRetval.result;
+		if (selection == null) {
+			console.log("acpContentScriptExtract: %o", extractRetval);
+		}
 	} catch (ex) {
 		console.error("acp: error while trying content script: %o", ex);
 	}
@@ -67,13 +85,16 @@ async function acpExtractAndCopy(clickData, tab) {
 	}
 	selection = acpReplaceSpecial(selection);
 	try {
-		const scriptResult = await acpExecuteContentScript({
+		const copyRetval = await acpExecuteContentScript({
 			target,
 			func: acpContentScriptCopy,
 			args: [ selection ],
 		});
-		if (scriptResult) {
-			return scriptResult;
+		const copyResult = copyRetval.result;
+		if (copyResult) {
+			return "CONTENT_SCRIPT";
+		} else {
+			console.log("acpContentScriptCopy: %o", copyRetval);
 		}
 	} catch (ex) {
 		console.error("acp: error while trying content script: %o", ex);

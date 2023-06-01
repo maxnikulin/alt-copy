@@ -6,6 +6,30 @@
 "use strict";
 
 async function acpContentScriptCopy(text) {
+	// See `acpContentScriptExtract` for details.
+	// Content script functions must be self-contained,
+	// so code duplication is unavoidable.
+	function acpErrorToObject(error) {
+		try {
+			if (error == null || typeof error === "string") {
+				return error;
+			} else if (typeof error.message !== "string") {
+				return {
+					string: String(error),
+					objectToString: Object.prototype.toString.call(error),
+				};
+			}
+			const { name, message, fileName, lineNumber, columnNumber } = error;
+			return {
+				name, message, fileName, lineNumber, columnNumber,
+				constructorName: error.constructor?.name
+			};
+		} catch (ex) {
+			console.error(ex);
+			return String(ex);
+		}
+	}
+
 	function acpCopyUsingEvent(text) {
 		// A page might install a handler earlier
 		let handlerInvoked = false;
@@ -57,27 +81,12 @@ async function acpContentScriptCopy(text) {
 			console.error(
 				"acp: navigator.clipboard.writeText failed: %o",
 				ex || "navigator.clipboard.writeText failed");
-			// Firefox-113 `scripting.executeScript` throws
-			//
-			//     Error {
-			//         name: "Error",
-			//         message: "Script '<anonymous code>' result is non-structured-clonable data"
-			//     }
-			//
-			// in the case of ex
-			//
-			//     DOMException {
-			//         name: "NotAllowedError",
-			//         message: "Clipboard write was blocked due to lack of user activation.",
-			//     }
-			//
-			// when context menu is invoked using `[Shift+F10]` shortcut instead of mouse click.
-			const error = new Error(ex.message);
-			error.stack = ex.stack;
-			// ignored
-			error.name = ex.constructor?.name ?? ex.name;
 			throw error;
 		};
 	}
-	return await acpScriptCopy(text);
+	try {
+		return { result: await acpScriptCopy(text) };
+	} catch (ex) {
+		return { error: acpErrorToObject(ex) };
+	}
 }
