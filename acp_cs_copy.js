@@ -30,63 +30,124 @@ async function acpContentScriptCopy(text) {
 		}
 	}
 
-	function acpCopyUsingEvent(text) {
-		// A page might install a handler earlier
-		let handlerInvoked = false;
+	/* `document.execCommand("copy")` may be cancelled
+	 * by a `window` `copy` event listener added by a web page
+	 * with `{capture: true}` option. Since `clipboardchange` event
+	 * <https://w3c.github.io/clipboard-apis/#clipboard-event-clipboardchange>
+	 * has not implemented by browsers, `navigator.clipboard.writeText`
+	 * should be more reliable and thus should be tried first.
+	 *
+	 * While `browser.permissions.request` requires no `await` expression
+	 * before its call due to https://bugzilla.mozilla.org/1398833
+	 * clipboard permission is granted for ~5 seconds in response to user action.
+	 * The timeout counts from opening content menu
+	 * in Firefox-102 ESR and from selection menu item in Firefox-113.
+	 * `[Menu]` or `[Shift + F10]` keyboard shortcuts is considered
+	 * as user activation in Firefox-113, but not in Firefox-102 ESR.
+	 * Both copy command and `clipboard.writeEvent` methods are affected
+	 * by user action context timeout.
+	 *
+	 * So there is no reason to prefer synchronous
+	 * `document.execCommand("copy")` (that may cause arbitrary delay
+	 * in the case of an event listener added by the page)
+	 * to `async` `navigator.clipboard`. Use Editing API as a fallback
+	 * for insecure pages where Clipboard API is unavailable.
+	 *
+	 * The statement above is not true in Chrome
+	 * where a permission request popup may appear, see
+	 * https://crbug.com/1382608 (WontFix)
+	 * "WebExtension Content Script: navigator.clipboard triggers permission dialog"
+	 * So `offscreen` API should be used till `navigator.clipboard` API
+	 * will be made available for extension service worker.
+	 */
+	async function acpCopyNavigator (text) {
+		const log = [];
+		const method = "navigator.clipboard.writeText";
+		try {
+			if (navigator.clipboard != null) {
+				await navigator.clipboard.writeText(text);
+				log.push({ result: true, method });
+			} else {
+				log.push({
+					method,
+					error: "Undefined navigator.clipboard, likely insecure context",
+				});
+			}
+		} catch (ex) {
+			log.push({ method, error: acpErrorToObject(ex) });
+		}
+		return log;
+	}
 
+	function acpCopyUsingEvent(text) {
+		const log = [];
+		const method = 'document.execCommand("copy")';
+
+		let listenerInvoked;
+		let listenerCompleted;
 		function acpOnCopy(evt) {
+			listenerInvoked = true;
 			try {
 				evt.stopImmediatePropagation();
 				evt.preventDefault();
 				evt.clipboardData.clearData();
 				evt.clipboardData.setData("text/plain", text);
+				listenerCompleted = true;
 			} catch (ex) {
 				console.error("acpOnCopy: %o", ex);
+				log.push({ method, error: acpErrorToObject(ex) });
 			}
-			handlerInvoked = true;
 		}
 
-		let result;
-		const listenerOptions = { capture: true };
 		try {
-			window.addEventListener("copy", acpOnCopy, listenerOptions);
-			result = document.execCommand("copy");
-		} finally {
-			window.removeEventListener("copy", acpOnCopy, listenerOptions);
-		}
+			const listenerOptions = { capture: true };
+			let commandResult;
+			try {
+				window.addEventListener("copy", acpOnCopy, listenerOptions);
+				commandResult = document.execCommand("copy");
+			} finally {
+				window.removeEventListener("copy", acpOnCopy, listenerOptions);
+			}
 
-		if (!result) {
-			console.log("acp: Copy using command and event listener failed");
-		} else if (!handlerInvoked) {
-			console.log("acp: Page overrides copy handler");
+			if (!commandResult) {
+				console.log("acp: Copy command failed");
+				log.push({ method, error: "Copy command failed" });
+			} else if (!listenerInvoked) {
+				console.log("acp: Page overrides copy handler");
+				log.push({ method, error: "Copy event blocked" });
+			} else if (!listenerCompleted) {
+				console.log("acp: copy event listener has not completed");
+				log.push({ method, error: "Listener of copy event has not completed" });
+			} else {
+				log.push({ method, result: true });
+			}
+		} catch (ex) {
+			console.error("acp: copy using command: %o", ex);
+			log.push({ method, error: acpErrorToObject(ex) });
 		}
-		return result && handlerInvoked;
+		return log;
 	}
 
-	async function acpScriptCopy(text) {
-		// Setting `document.oncopy` can not overwrite `copy` event listener installed
-		// earlier by the web page. `navigator.clipboard.writeText` is not succeptible
-		// to this problem but it is an asynchronous function, so if it is tried
-		// at first then copy using `copy` event runs out of user action context.
-		if (acpCopyUsingEvent(text)) {
-			return "COPY_EVENT_SUCCESS";
-		}
-		if (!navigator.clipboard) {
-			return false;
-		}
-		try {
-			await navigator.clipboard.writeText(text)
-			return "NAVIGATOR_CLIPBOARD_SUCCESS";
-		} catch(ex) {
-			console.error(
-				"acp: navigator.clipboard.writeText failed: %o",
-				ex || "navigator.clipboard.writeText failed");
-			throw error;
-		};
-	}
+	const retval = { result: false, log: [] };
 	try {
-		return { result: await acpScriptCopy(text) };
-	} catch (ex) {
-		return { error: acpErrorToObject(ex) };
+		for (const func of [ acpCopyNavigator, acpCopyUsingEvent ]) {
+			try {
+				const entries = await func(text);
+				if (!(Array.isArray(entries) && entries.length > 0)) {
+					throw new TypeError("Unexpected return value from " + func.name);
+				}
+				retval.log.push(...entries);
+				if (entries[entries.length - 1]?.result === true) {
+					retval.result = true;
+					break;
+				}
+			} catch (ex) {
+				console.error("acpContentScriptCopy: %o: %o", func?.name, ex);
+				retval.log.push({ error: acpErrorToObject(ex) });
+			}
+		}
+	} catch(ex) {
+		retval.error = acpErrorToObject(ex);
 	}
+	return retval;
 }
