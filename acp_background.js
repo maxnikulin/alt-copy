@@ -57,86 +57,265 @@ async function acpExecuteContentScript(injectionTarget) {
 	}
 }
 
-async function acpExtractAndCopy(clickData, tab) {
-	const { targetElementId, frameId } = clickData;
-	const target = { tabId: tab.id, frameIds: [ frameId ] };
-	let selection;
+/** If user activation for DOM API propagates to the add-on background page
+ *
+ * Works in Firefox-113, but not in Firefox-102 ESR.
+ *
+ * Without `clipboardWrite` permission `navigator.clipboard.writeText(text)`
+ * and `document.execCommand("copy") work in Firefox-113 within 5 seconds
+ * after `menus.onClicked`, `commands.onCommand`, or `browserAction.onClicked`
+ * events are fired. In Firefox-102 `writeText` throws
+ * `DOMException: Clipboard write was blocked due to lack of user activation.`
+ * and `execCommand` returns `false` causing the following warning in console
+ *
+ *     `document.execCommand(‘cut’/‘copy’) was denied because it was not called from inside a short running user-generated event handler.
+ *
+ * https://bugzilla.mozilla.org/1835585
+ *
+ * `navigator.userActivation` is not supported by Firefox.
+ */
+function acpHasDOMUserActivationInBackground() {
+	// Appeared in Firefox-112
+	return navigator.getAutoplayPolicy !== undefined;
+}
+
+function acpMakePermissionsRequest(clickData, tab) {
+	// Firefox (but not Chrome) mv2 (but not mv3) add-ons can
+	// inject content scripts into cross-origin frames
+	// when they are created from original HTML content
+	// <https://bugzilla.mozilla.org/1396399>
+	// and unless the tab is restored from cache
+	// <https://bugzilla.mozilla.org/1837336>
+	// So `origins` permissions are mostly not necessary.
+
+	if (acpHasDOMUserActivationInBackground()) {
+		// `navigator.clipboard.writeText` may be called from background
+		// without the `clipboardWrite` permission.
+		return null;
+	}
+	const retval = { permissions: [ "clipboardWrite" ] };
+	if (!(tab?.id >= 0)) {
+		// E.g. in the case of browser action for add-on popup
+		// or sidebar of another add-on.
+		// `tab === undefined` and `clickData.viewType === "popup"`
+		return retval;
+	}
+	const url = tab?.url ?? clickData.pageUrl ?? clickData.frameUrl;
+	if (typeof url !== "string") {
+		console.warn("acp: can not get URL", clickData, tab);
+		return retval;
+	}
+	if (url === "about:srcdoc") {
+		return null;
+	}
+	if (url === "about:blank") {
+		// Either completely blank and so nothing to extract
+		// or it is filled by opener and accessible.
+		return null;
+	}
+	// TODO `javascript:`?
+	const privileged = [ "about:", "moz-extension:", "view-source:", "resource:" ];
+	if (privileged.some(p => url.startsWith(p))) {
+		return retval;
+	}
+	if (tab?.isInReaderMode) {
+		return retval;
+	}
 	try {
-		const extractRetval = await acpExecuteContentScript({
+		// https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Content_scripts#restricted_domains
+		const hosts = [
+			"accounts-static.cdn.mozilla.net",
+			"accounts.firefox.com",
+			"addons.cdn.mozilla.net",
+			"addons.mozilla.org",
+			"api.accounts.firefox.com",
+			"content.cdn.mozilla.net",
+			"discovery.addons.mozilla.org",
+			"install.mozilla.org",
+			"oauth.accounts.firefox.com",
+			"profile.accounts.firefox.com",
+			"support.mozilla.org",
+			"sync.services.mozilla.com",
+		];
+		const urlObject = new URL(url);
+		if (hosts.indexOf(urlObject.hostname) >= 0 || /\.pdf$/i.test(urlObject.path)) {
+			return retval;
+		}
+	} catch (ex) {
+		Promise.reject(ex);
+		return null;
+	}
+	return null;
+}
+
+async function acpRunExtract(clickData, tab) {
+	try {
+		if (!(tab?.id >= 0)) {
+			// Can not inject script, no reason to repeat.
+			return { result: "" };
+		}
+		const { targetElementId, frameId } = clickData;
+		const target = { tabId: tab.id };
+		if (frameId > 0) {
+			target.frameIds = [ frameId ];
+		};
+		return await acpExecuteContentScript({
 			target,
 			func: acpContentScriptExtract,
 			args: [ targetElementId ?? null ],
 		});
-		selection = extractRetval.result;
-		if (selection == null) {
-			console.log("acpContentScriptExtract: %o", extractRetval);
+	} catch (error) {
+		return { error };
+	}
+}
+
+async function acpRunCopy(clickData, tab, selection) {
+	if (!(tab?.id >= 0)) {
+		// Can not inject script, no reason to repeat.
+		return { result: "NO_TAB" };
+	}
+	const target = { tabId: tab.id };
+	const { frameId } = clickData;
+	if (frameId > 0) {
+		target.frameIds = [ frameId ];
+	};
+	const frameResult = await acpExecuteContentScript({
+		target,
+		func: acpContentScriptCopy,
+		args: [ selection ],
+	});
+	if (
+		frameResult?.result === true
+		|| target.frameIds === undefined
+	) {
+		return frameResult;
+	}
+	delete target.frameIds
+	console.log("acp: retry copy through the top level frame");
+	return await acpExecuteContentScript({
+		target,
+		func: acpContentScriptCopy,
+		args: [ selection ],
+	});
+}
+
+async function acpCopy(clickData, tab) {
+	let permissionsRequest;
+	let permissionsPromise;
+	try {
+		permissionsRequest = acpMakePermissionsRequest(clickData, tab);
+		if (permissionsRequest != null) {
+			/* No `await` before due to
+			 * https://bugzilla.mozilla.org/1398833
+			 * "chrome.permissions.request needs to be called directly from input handler,
+			 * making it impossible to check for permissions first"
+			 *
+			 * Do not `await` result to run content script before
+			 * user decision. It should minimize chance that the target element
+			 * will disappear from DOM.
+			 */
+			permissionsPromise = browser.permissions.request(permissionsRequest);
 		}
 	} catch (ex) {
-		console.error("acp: error while trying content script: %o", ex);
+		// Log with actual `lineNumber`.
+		Promise.reject(ex);
 	}
+
+	// Try to extract.
+	const extractResult = await acpRunExtract(clickData, tab);
+
+	let selection = extractResult?.result;
+	if (typeof selection !== "string") {
+		console.warn("acp: extract: %o", extractResult);
+	}
+
+	// Fallback to `clickData`
 	if (!selection) {
 		console.log("acp: fallback to selection text");
 		selection = clickData.selectionText || clickData.linkText ||
 			clickData.linkUrl || clickData.srcUrl;
 	}
 	if (!selection) {
-		console.log("acp: Nothing extracted");
-		return;
+		throw new Error("nothing to copy");
 	}
 	selection = acpReplaceSpecial(selection);
-	try {
-		const copyRetval = await acpExecuteContentScript({
-			target,
-			func: acpContentScriptCopy,
-			args: [ selection ],
-		});
-		const copyResult = copyRetval.result;
-		if (copyResult) {
-			return "CONTENT_SCRIPT";
-		} else {
-			console.log("acpContentScriptCopy: %o", copyRetval);
-		}
-	} catch (ex) {
-		console.error("acp: error while trying content script: %o", ex);
-	}
-	try {
-		// https://bugzilla.mozilla.org/show_bug.cgi?id=1670252
-		// Bug 1670252 navigator.clipboard.writeText rejects with undefined as rejection value
-		// Fixed in Firefox-85
-		await navigator.clipboard.writeText(selection);
-		return "BACKGROUND_NAVIGATOR_CLIPBOARD";
-	} catch (ex) {
-		console.warn("acp: navigator.clipboard.writeText failed: %o", ex);
-	}
-}
 
-async function acpCopy(clickData, tab) {
-	let permissionsPromise;
+	let withPermissions;
 	try {
-		if (tab.url && clickData.frameId) {
-			permissionsPromise = browser.permissions.request({
-				permissions: [ "clipboardWrite" ],
-				origins: [ tab.url ],
-			});
+		withPermissions = !permissionsRequest
+			|| await browser.permissions.contains(permissionsRequest);
+	} catch (ex) {
+		Promise.reject(ex);
+	}
+
+	// Try to copy from background page.
+	let copyBgResult;
+	const hasBgUserActivation = acpHasDOMUserActivationInBackground();
+	try {
+		if (hasBgUserActivation || withPermissions) {
+			try {
+				await navigator.clipboard.writeText(selection);
+				return;
+			} catch (error) {
+				copyBgResult = { error };
+				if (hasBgUserActivation) {
+					console.error(
+						"acp: copy from background failed.");
+				}
+			}
 		}
 	} catch (ex) {
-		console.error("acp: attExecuteContentScript: ignore error: %o", ex);
+		Promise.reject(ex);
 	}
-	if (await acpExtractAndCopy(clickData, tab)) {
-		return;
-	}
-	
-	// Try once more if permissions are granted and early attempt failed.
-	if (permissionsPromise) {
-		if (!(await permissionsPromise)) {
-			console.log("acp: permission request declined");
+
+	// First fallback to copy from content script.
+	let copyScriptResult;
+	try {
+		copyScriptResult = await acpRunCopy(clickData, tab, selection);
+		if (copyScriptResult?.result === true) {
 			return;
 		}
-		console.log("acp: retrying content script with granted permissions");
-		if (await acpExtractAndCopy(clickData, tab)) {
+	} catch (error) {
+		copyScriptResult = { error };
+	}
+
+	// Wait user permissions decision.
+	try {
+		permissionsPromise = await permissionsPromise;
+	} catch (ex) {
+		Promise.reject(ex);
+	}
+
+	// If permission request is rejected by the user then retries
+	// should help in the case of logical errors in the code.
+
+	// Retry copy from background.
+	try {
+		if (copyBgResult === undefined || !withPermissions)  {
+			await navigator.clipboard.writeText(selection);
 			return;
 		}
+	} catch (error) {
+		copyBgResult = { error };
 	}
+
+	// Retry copy from content script.
+	try {
+		if (!withPermissions) {
+			copyScriptResult = await acpRunCopy(clickData, tab, selection);
+			if (copyScriptResult?.result === true) {
+				return;
+			}
+		}
+	} catch (error) {
+		copyScriptResult = { error };
+	}
+
+	if (permissionsPromise !== undefined && permissionsPromise !== true) {
+		console.warn("acp: permissions are not granted");
+	}
+	console.warn("acp: background copy: %o", copyBgResult);
+	console.warn("acp: content script copy: %o", copyScriptResult);
 	throw new Error("Failed to copy");
 }
 
