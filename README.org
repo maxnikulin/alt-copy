@@ -78,13 +78,24 @@ from context menu.
 
 ** Input data to the clipboard (=clipboardWrite=)
 
-In Firefox this permission allows to put data to clipboard
-at *any* moment, that is why I am trying to avoid making
-this permission as a required one.
+This permission is not required in Firefox-113,
+however in Firefox-102 the add-on may fail
+to put text to clipboard if you open context menu
+using keyboard shortcut (=[Menu]= or =[Shift+F10]=),
+in the case of delay between opening menu and selecting
+the item longer than 5 seconds, when menu is invoked
+for a subframe, or if you are trying to copy anything
+from a privileged page.
 
-Besides subframes, this permission is not really required.
-It seems, Firefox believes that ~document.execCommand("copy")~ is executed
-withing user action context only in main page of tab but not in child frames.
+User action context is propagated to add-on
+background pages and timeout is counted from selection
+of menu item in Firefox-113, so the extension may work
+without the =clipboardWrite= permission.
+
+This permission allows to put data to clipboard
+at *any* moment, not only in response to user action.
+That is why I am trying to avoid making
+this permission a required one.
 
 ** Access your data for all websites (=<all_urls>=)
 
