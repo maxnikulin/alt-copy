@@ -45,14 +45,20 @@ extension, source:
 It rates text sources to copy in a different way.
 I borrowed some ideas from it though. Implementation details differ as well.
 
-If some element is located in a subframe, a request for clipboard permission
-and maybe for particular site is shown. If subframe belongs to the same
-site, it seems, request may be rejected. Without clipboard permission
-the add on may work less reliable though. In the add-on settings
-you can allow access to subframes from any site.
+Do not expect that any add-on can access content of internal browser pages
+like preferences, extension manager,
+or others ones listed on the =about:about= page. Another restriction is
+[[https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/Content_scripts#restricted_domains][privileged pages]]
+like <https://addons.mozilla.org/>.
 
-Do not expect that any add-on can access content of privileged pages
-such as =about:about= or [[https://addons.mozilla.org/]].
+Firefox 102 ESR may request clipboard permission when invoked on a protected
+page. The only thing it could offer is to copy link address or image URL.
+It is not necessary for recent Firefox releases.
+
+The extension used to request access to specific sites when context menu
+is opened in a subframe. Currently it is not doing so, but such behavior
+may be restored in future. You may enable access to all sites, see how to
+[[https://support.mozilla.org/kb/manage-optional-permissions-extensions][manage optional permissions]].
 
 * Permissions
 
@@ -99,10 +105,23 @@ this permission a required one.
 
 ** Access your data for all websites (=<all_urls>=)
 
-This permission is optional.
-It should be granted to copy text from any subframes.
-Otherwise permission for particular page will be requested
-on demand.
+May be necessary to extract tooltips from frames.
+Try it if you experienced issues.
+
+The =activeTab= permission grants access to the top level
+tab page, not to frames. While manifest v2 add-ons
+in Firefox have access to frames loaded from other sites (cross-origin frames),
+there are some corner cases when the permission may be helpful.
+For security reasons scripts can not be injected into dynamically created frames
+([[https://bugzilla.mozilla.org/1396399][Firefox bug #1396399]])
+or when a tab is restored from cache
+([[https://bugzilla.mozilla.org/1837336][Firefox bug #1837336]]).
+
+Even having this permission the add-on may fail inside
+some special frames
+([[https://bugzilla.mozilla.org/1411641#c41][Firefox bug #1411641 comment 41]]).
+
+This permission is rather dangerous and gives extensions a lot of power.
 
 * Complications with Chrome
 
