@@ -116,7 +116,44 @@
           <li><input type="text" id="inputWithBlurListener">
             With blur event listener.</li>
         </ul>
-    <h2 id="frame">Frame</h2>
+    <h2 id="frame">Frames</h2>
+    <!--
+<h1><code>&lt;iframe srcdoc="..."&gt;</code></h1>
+<p><time datetime="2023-05-31">May 2023</time>:
+  <code>&lt;time datetime="2023-05-31"&gt;</code> element.</p>
+<p><a title="Context menu (User interface)"
+    href="https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/user_interface/Context_menu_items"
+  >Context menu items</a>:
+  <code>title="Context menu (User interface)"</code>.</p>
+    -->
+    <iframe srcdoc="
+&lt;h1&gt;&lt;code&gt;&amp;lt;iframe srcdoc=&quot;...&quot;&gt;&lt;/code&gt;&lt;/h1&gt;
+&lt;p&gt;&lt;time datetime=&quot;2023-05-31&quot;&gt;May 2023&lt;/time&gt;:
+  &lt;code&gt;&amp;lt;time datetime=&quot;2023-05-31&quot;&amp;gt;&lt;/code&gt; element.&lt;/p&gt;
+&lt;p&gt;&lt;a title=&quot;Context menu (User interface)&quot;
+    href=&quot;https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/user_interface/Context_menu_items&quot;
+  &gt;Context menu items&lt;/a&gt;:
+  &lt;code&gt;title=&quot;Context menu (User interface)&quot;&lt;/code&gt;.&lt;/p&gt;
+     "></iframe>
+    <!--
+<h1><code>&lt;iframe src="data:text/html;,..."&gt;</code></h1>
+<p><abbrv title="Formerly Mozilla Developer Network">MDN</abbrv>:
+  <code>&lt;abbrv title="Formerly Mozilla Developer Network"&gt;</code> element.</p>
+<p><a title="activeTab (manifest.json permissions key)"
+    href="https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/manifest.json/permissions#activetab_permission"
+  >activeTab permission</a>:
+  <code>title="activeTab (manifest.json permissions key)"</code>.</p>
+    -->
+    <!-- console.log(txt.split("\n").map(encodeURIComponent).join("\n")) -->
+    <iframe src="data:text/html;charset=UTF-8,
+%3Ch1%3E%3Ccode%3E%26lt%3Biframe%20src%3D%22data%3Atext%2Fhtml%3B%2C...%22%26gt%3B%3C%2Fcode%3E%3C%2Fh1%3E
+%3Cp%3E%3Cabbrv%20title%3D%22Formerly%20Mozilla%20Developer%20Network%22%3EMDN%3C%2Fabbrv%3E%3A
+%20%20%3Ccode%3E%26lt%3Babbrv%20title%3D%22Formerly%20Mozilla%20Developer%20Network%22%26gt%3B%3C%2Fcode%3E%20element.%3C%2Fp%3E
+%3Cp%3E%3Ca%20title%3D%22activeTab%20(manifest.json%20permissions%20key)%22
+%20%20%20%20href%3D%22https%3A%2F%2Fdeveloper.mozilla.org%2Fen-US%2Fdocs%2FMozilla%2FAdd-ons%2FWebExtensions%2Fmanifest.json%2Fpermissions%23activetab_permission%22
+%20%20%3EactiveTab%20permission%3C%2Fa%3E%3A
+%20%20%3Ccode%3Etitle%3D%22activeTab%20(manifest.json%20permissions%20key)%22%3C%2Fcode%3E.%3C%2Fp%3E
+"></iframe>
     <iframe id="nestedFrame"></iframe>
     <script>
       var formInterceptor = document.getElementById("formInterceptor");
