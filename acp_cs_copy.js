@@ -79,9 +79,63 @@ async function acpContentScriptCopy(text) {
 		return log;
 	}
 
+	function acpMakeRestoreSelection(log) {
+		const ranges = [];
+		try {
+			const selection = window.getSelection();
+			const { rangeCount } = selection;
+			for (let i = 0; i < rangeCount; ++i) {
+				ranges.push(selection.getRangeAt(i).cloneRange());
+			}
+		} catch(ex) {
+			Promise.reject(ex);
+			log?.push?.({ method: "saveSelection", error: acpErrorToObject(ex) });
+		}
+		return function acpRestoreSelection(ranges, log) {
+			try {
+				const selection = window.getSelection();
+				selection.removeAllRanges();
+				for (const r of ranges) {
+					selection.addRange(r);
+				}
+			} catch(ex) {
+				Promise.reject(ex);
+				log?.push?.({ method: "saveSelection", error: acpErrorToObject(ex) });
+			}
+		}.bind(undefined, ranges, log);
+	}
+
+	function acpMakeTempInput(log) {
+		try {
+			const input = document.createElement("textarea");
+			input.style.position = "absolute";
+			input.style.left = "-9999px";
+			input.style.top = "-9999px";
+			input.style.height = "1px";
+			input.style.zIndex = "-1";
+			return input;
+		} catch (ex) {
+			Promise.reject(ex);
+			log?.push({ method: "acpMakeTempInput", error: acpErrorToObject(ex) });
+		}
+	}
+
 	function acpCopyUsingEvent(text) {
 		const log = [];
-		const method = 'document.execCommand("copy")';
+		const entry = { method: 'document.execCommand("copy")' };
+		/* If a frame is focused then the `copy` event is fired in that frame,
+		 * not in the current `window`. Use fallback to a temporary input field
+		 * that causes lost of the active element in the subframe.
+		 */
+		let active, tempInput;
+		try {
+			active = document.activeElement;
+			const node = active?.nodeName?.toUpperCase?.();
+			// It seems, `<video>` is not affected.
+			tempInput = [ "FRAME", "IFRAME", "EMBED", "OBJECT" ].indexOf(node) >= 0;
+		} catch (ex) {
+			log.push({ ...entry, error: acpErrorToObject(ex) });
+		}
 
 		let listenerInvoked;
 		let listenerCompleted;
@@ -95,35 +149,52 @@ async function acpContentScriptCopy(text) {
 				listenerCompleted = true;
 			} catch (ex) {
 				console.error("acpOnCopy: %o", ex);
-				log.push({ method, error: acpErrorToObject(ex) });
+				log.push({ ...entry, error: acpErrorToObject(ex) });
 			}
 		}
 
 		try {
 			const listenerOptions = { capture: true };
 			let commandResult;
+			let input, restoreSelection;
 			try {
+				if (tempInput) {
+					restoreSelection = acpMakeRestoreSelection(log);
+					input = acpMakeTempInput(log);
+					if (input != null) {
+						input.value = text;
+						document.body.appendChild(input);
+						// input.focus(); // It seems it is not necessary
+						input.select();
+					}
+				}
 				window.addEventListener("copy", acpOnCopy, listenerOptions);
 				commandResult = document.execCommand("copy");
 			} finally {
 				window.removeEventListener("copy", acpOnCopy, listenerOptions);
+				// Frame becomes focused, but its active element is lost.
+				active?.focus();
+				restoreSelection?.();
+				if (input !== undefined) {
+					document.body.removeChild(input);
+				}
 			}
 
 			if (!commandResult) {
 				console.log("acp: Copy command failed");
-				log.push({ method, error: "Copy command failed" });
+				log.push({ ...entry, error: "Copy command failed" });
 			} else if (!listenerInvoked) {
 				console.log("acp: Page overrides copy handler");
-				log.push({ method, error: "Copy event blocked" });
+				log.push({ ...entry, error: "Copy event blocked" });
 			} else if (!listenerCompleted) {
 				console.log("acp: copy event listener has not completed");
-				log.push({ method, error: "Listener of copy event has not completed" });
+				log.push({ ...entry, error: "Listener of copy event has not completed" });
 			} else {
-				log.push({ method, result: true });
+				log.push({ ...entry, result: true });
 			}
 		} catch (ex) {
 			console.error("acp: copy using command: %o", ex);
-			log.push({ method, error: acpErrorToObject(ex) });
+			log.push({ ...entry, error: acpErrorToObject(ex) });
 		}
 		return log;
 	}
