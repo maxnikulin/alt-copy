@@ -65,14 +65,39 @@ function acpContentScriptExtract(targetElementId) {
 		return element && element.getAttribute && element.getAttribute("value") || "";
 	}
 
-	function acpGetText(elementId) {
-		if (elementId == null) {
-			console.warn("acp: no element ID specified");
-			return;
+	function acpGetTargetElement(elementId) {
+		let element;
+		try {
+			if (elementId != null) {
+				element = browser.menus.getTargetElement(elementId);
+			}
+			// In response to keyboard shortcut either `<body>` or `<html>` is returned.
+			if (element != null && element !== document.body && element !== document.documentElement) {
+				return element;
+			}
+			const selection = window.getSelection();
+			if (selection == null) {
+				return element;
+			}
+			const { focusNode, type } = selection;
+			if (type === "None" || focusNode === null) {
+				return element;
+			}
+			switch (focusNode.nodeType) {
+				case Node.ELEMENT_NODE:
+					return focusNode;
+				case Node.TEXT_NODE:
+					return focusNode.parentElement ?? element;
+			}
+		} catch (ex) {
+			Promise.reject(ex);
 		}
-		const element = browser.menus.getTargetElement(elementId);
+		return element;
+	}
+
+	function acpGetText(element) {
 		if (element == null) {
-			console.warn("acp: no element found");
+			console.warn("acp: no target element");
 			return;
 		}
 		const nodeName = element.nodeName.toUpperCase();
@@ -168,7 +193,7 @@ function acpContentScriptExtract(targetElementId) {
 	}
 
 	function acpScriptExtract(targetElementId) {
-		return acpGetText(targetElementId) || acpGetSelection() || "";
+		return acpGetText(acpGetTargetElement(targetElementId)) || acpGetSelection() || "";
 	}
 
 	try {
