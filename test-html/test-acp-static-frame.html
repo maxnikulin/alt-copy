@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>AltCopy Test Static Frame</title>
+  </head>
+  <body>
+    <h1>AltCopy Test Static Frame</h1>
+    <p>Access to dynamically created frames is blocked for Firefox mv2 add-ons, see
+    <a href="https://bugzilla.mozilla.org/1396399"
+       title="(CVE-2018-5116) An extension can XSS any domain with only the ActiveTab permission using frames"
+       >Firefox bug #1396399</a>, so a static frame is necessary for testing.</p>
+    <p>Firefox blocks mv3 add-ons access to static frames
+    on pages loaded as local files (<code>file:///</code> scheme),
+    see <a href="https://bugzilla.mozilla.org/1837336"
+           title="mv2 and mv3 extensions inconsistently blocks scripting.executeScript in frames"
+           >Firefox bug #1837336</a>.</p>
+    <ul>
+      <li>Links above have <code>title</code> attributes.</li>
+      <li><label><input disabled value="Disabled Text Input"> Disabled input.</label>
+        <code>value="Disabled Text Input"</code></li>
+      <li><label><input placeholder="Placeholder cab be extracted as well"> Input with placeholder.
+        </label></li>
+    </ul>
+  </body>
+</html>
