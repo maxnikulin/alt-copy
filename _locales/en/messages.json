@@ -1,0 +1,18 @@
+{
+	"extName": {
+		"message": "AltCopy",
+		"description": "Add-on name that appears as title in the browser add-on manager and in the extension catalog"
+	},
+	"extDescription": {
+		"message": "Context menu item to copy tooltip text (\"title\" attribute), \"alt\" image description, value of date input field, etc. to struggle with pages pretending to be friendly with text like \"7 days ago\" when you need actual date from tooltip for your notes.",
+		"description": "Add-on description that appears with the add-on name in the browser add-on manager and in the extension catalog. The catalog has another description that is downloaded and displayed in the details tab of the add-on manager"
+	},
+	"extAuthor": {
+		"message": "Max Nikulin",
+		"description": "Add-on author is displayed in the details tab of the browser add-on manager in a table below the catalog description"
+	},
+	"copyContextMenu": {
+		"message": "Copy alt te&xt",
+		"description": "Context menu item label for web pages"
+	}
+}

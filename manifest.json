@@ -1,15 +1,16 @@
 {
 	"manifest_version": 2,
-	"name": "AltCopy",
+	"name": "__MSG_extName__",
 	"version": "0.4.0",
-	"description": "Context menu item to copy tooltip text (\"title\" attribute), \"alt\" image description, value of date input field, etc. to struggle with pages pretending to be friendly with text like \"7 days ago\" when you need actual date from tooltip for your notes.",
+	"description": "__MSG_extDescription__",
 	"icons": {
 		"16": "icons/alt-copy-16.png",
 		"32": "icons/alt-copy-32.png",
 		"48": "icons/alt-copy-48.png",
 		"96": "icons/alt-copy-96.png"
 	},
-	"author": "Max Nikulin",
+	"author": "__MSG_extAuthor__",
+	"default_locale": "en",
 	"homepage_url": "https://github.com/maxnikulin/alt-copy",
 	"permissions": [ "menus", "activeTab", "scripting" ],
 	"optional_permissions": [ "<all_urls>", "clipboardWrite" ],

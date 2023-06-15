@@ -12,7 +12,7 @@ function acpMenusCreate() {
 			contexts: [ "all" ],
 			enabled: true,
 			id: "ACP_COPY",
-			title: "Copy alt te&xt",
+			title: chrome.i18n.getMessage("copyContextMenu"),
 		},
 		function acpMenusCreateCallback() {
 			if (browser.runtime.lastError) {
