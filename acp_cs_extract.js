@@ -6,6 +6,8 @@
 "use strict";
 
 function acpContentScriptExtract(targetElementId) {
+	const ACP_STOP = Symbol("StopIterations");
+
 	/* `acpContentScriptCopy` contains a copy of `acpErrorToObject`.
 	 * Content script functions must be self-contained,
 	 * so code duplication is unavoidable.
@@ -175,16 +177,31 @@ function acpContentScriptExtract(targetElementId) {
 		if (text) {
 			return text;
 		}
+		return undefined;
+	}
 
+	function acpWalkAncestors(element, func) {
+		for (let current = element; current != null; current = current.parentElement) {
+			const text = func(current);
+			if (text === ACP_STOP) {
+				break;
+			} else if (text) {
+				return text;
+			}
+		}
+		return undefined;
+	}
+
+	function acpNonSelectableText(element) {
+		const text = element?.innerText;
+		if (text == null) {
+			return undefined;
+		}
 		const cssUserSelect = window.getComputedStyle(element).userSelect;
 		if (cssUserSelect && cssUserSelect.toLowerCase && cssUserSelect.toLowerCase() === "none") {
-			text = element.innerText;
-		}
-		if (text) {
 			return text;
 		}
-		console.warn("acp: no text attributes in %o", element);
-		return undefined;
+		return ACP_STOP;
 	}
 
 	function acpGetSelection() {
@@ -193,7 +210,30 @@ function acpContentScriptExtract(targetElementId) {
 	}
 
 	function acpScriptExtract(targetElementId) {
-		return acpGetText(acpGetTargetElement(targetElementId)) || acpGetSelection() || "";
+		let element;
+		try {
+			element = acpGetTargetElement(targetElementId);
+		} catch (ex) {
+			Promise.reject(ex);
+		}
+		try {
+			const text = acpWalkAncestors(element, acpGetText);
+			if (text) {
+				return text;
+			}
+		} catch (ex) {
+			Promise.reject(ex);
+		}
+		try {
+			const text = acpWalkAncestors(element, acpNonSelectableText);
+			if (text) {
+				return text;
+			}
+		} catch (ex) {
+			Promise.reject(ex);
+		}
+		console.warn("acp: no text attributes in %o", element);
+		return acpGetSelection() || "";
 	}
 
 	try {
