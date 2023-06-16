@@ -241,4 +241,5 @@ function acpContentScriptExtract(targetElementId) {
 	} catch (ex) {
 		return { error: acpErrorToObject(ex) };
 	}
+	//# sourceURL=acp_cs_extract_func.js
 }

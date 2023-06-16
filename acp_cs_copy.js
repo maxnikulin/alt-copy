@@ -221,4 +221,5 @@ async function acpContentScriptCopy(text) {
 		retval.error = acpErrorToObject(ex);
 	}
 	return retval;
+	//# sourceURL=acp_cs_copy_func.js
 }
