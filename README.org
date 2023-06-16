@@ -81,18 +81,25 @@ and choose this add-on to grant or to revoke optional permissions.
 See [[https://support.mozilla.org//kb/permission-request-messages-firefox-extensions][Permission request messages for Firefox extensions]]
 for details.
 
-** Create context menu items (=menus=)
-# TODO Exact title.
+** Access your data for all websites (=<all_urls>=)
 
-Mandatory permission since it is necessary to get which element
-should be inspected for alternative text somehow.
+May be necessary to extract tooltips from frames.
+Try it if you experienced issues.
 
-** Access to content of current tab (=activeTab=)
-# TODO Exact title.
+The =activeTab= permission grants access to the top level
+tab page, not to frames. While manifest v2 add-ons
+in Firefox have access to frames loaded from other sites (cross-origin frames),
+there are some corner cases when the permission may be helpful.
+For security reasons scripts can not be injected into dynamically created frames
+([[https://bugzilla.mozilla.org/1396399][Firefox bug #1396399]])
+or when a tab is restored from cache
+([[https://bugzilla.mozilla.org/1837336][Firefox bug #1837336]]).
 
-Almost unavoidable permission for this extension.
-An alternative is to ask user in response to every invocation
-from context menu.
+Even having this permission the add-on may fail inside
+some special frames
+([[https://bugzilla.mozilla.org/1411641#c41][Firefox bug #1411641 comment 41]]).
+
+This permission is rather dangerous and gives extensions a lot of power.
 
 ** Input data to the clipboard (=clipboardWrite=)
 
@@ -115,25 +122,18 @@ at *any* moment, not only in response to user action.
 That is why I am trying to avoid making
 this permission a required one.
 
-** Access your data for all websites (=<all_urls>=)
+** Access to content of current tab (=activeTab=)
+# TODO Exact title.
 
-May be necessary to extract tooltips from frames.
-Try it if you experienced issues.
+Almost unavoidable permission for this extension.
+An alternative is to ask user in response to every invocation
+from context menu.
 
-The =activeTab= permission grants access to the top level
-tab page, not to frames. While manifest v2 add-ons
-in Firefox have access to frames loaded from other sites (cross-origin frames),
-there are some corner cases when the permission may be helpful.
-For security reasons scripts can not be injected into dynamically created frames
-([[https://bugzilla.mozilla.org/1396399][Firefox bug #1396399]])
-or when a tab is restored from cache
-([[https://bugzilla.mozilla.org/1837336][Firefox bug #1837336]]).
+** Create context menu items (=menus=)
+# TODO Exact title.
 
-Even having this permission the add-on may fail inside
-some special frames
-([[https://bugzilla.mozilla.org/1411641#c41][Firefox bug #1411641 comment 41]]).
-
-This permission is rather dangerous and gives extensions a lot of power.
+Mandatory permission since it is necessary to get which element
+should be inspected for alternative text somehow.
 
 * Complications with Chrome
 
