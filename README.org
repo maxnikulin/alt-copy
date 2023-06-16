@@ -141,6 +141,19 @@ This permission does not appear in the user interface.
 Mandatory permission since it is necessary to get which element
 should be inspected for alternative text somehow.
 
+** Execute JavaScript in the context of web pages (=scripting=)
+
+This permission does not appear in the user interface.
+
+Together with =activeTab= it allows to inject JavaScript code
+into the current page. It is the means used by the add-on
+to get attributes of the clicked element.
+
+The [[https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/scripting/executeScript][scripting.executeScript]]
+method is a better variant of
+[[https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/tabs/executeScript][tabs.executeScript]]
+however it requires additional permission.
+
 * Complications with Chrome
 
 Due to lack of
