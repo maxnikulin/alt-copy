@@ -122,15 +122,21 @@ at *any* moment, not only in response to user action.
 That is why I am trying to avoid making
 this permission a required one.
 
-** Access to content of current tab (=activeTab=)
-# TODO Exact title.
+** Access to content of the current tab (=activeTab=)
+
+This permission does not appear in the user interface.
+
+Together with =scripting= it allows to inject JavaScript code
+into the current page. It is the means used by the add-on
+to get attributes of the clicked element.
 
 Almost unavoidable permission for this extension.
 An alternative is to ask user in response to every invocation
 from context menu.
 
 ** Create context menu items (=menus=)
-# TODO Exact title.
+
+This permission does not appear in the user interface.
 
 Mandatory permission since it is necessary to get which element
 should be inspected for alternative text somehow.
