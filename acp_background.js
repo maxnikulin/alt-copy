@@ -5,6 +5,11 @@
 
 "use strict";
 
+// 5000 is user activation interval.
+var ACP_CONTENT_SCRIPT_TIMEOUT = 768;
+
+var acpAbortController;
+
 function acpMenusCreate() {
 	browser.menus.create(
 		{
@@ -22,10 +27,10 @@ function acpMenusCreate() {
 	);
 }
 
-async function acpExecuteContentScript(injectionTarget) {
+async function acpExecuteContentScript(ctx, injectionTarget) {
 	try {
-		const resultArray
-			= await browser.scripting.executeScript(injectionTarget);
+		const resultArray = await ctx.with(AbortSignal.timeout(ACP_CONTENT_SCRIPT_TIMEOUT))
+			.abortable(browser.scripting.executeScript(injectionTarget));
 		if (!Array.isArray(resultArray) || resultArray.length !== 1) {
 			console.warn(
 				"acp: scripting.executeScript(%): returned not an Array(1): %o",
@@ -148,7 +153,7 @@ function acpMakePermissionsRequest(clickData, tab) {
 	return null;
 }
 
-async function acpRunExtract(clickData, tab) {
+async function acpRunExtract(ctx, clickData, tab) {
 	try {
 		if (!(tab?.id >= 0)) {
 			// Can not inject script, no reason to repeat.
@@ -159,7 +164,7 @@ async function acpRunExtract(clickData, tab) {
 		if (frameId > 0) {
 			target.frameIds = [ frameId ];
 		};
-		return await acpExecuteContentScript({
+		return await acpExecuteContentScript(ctx, {
 			target,
 			func: acpContentScriptExtract,
 			args: [ targetElementId ?? null ],
@@ -169,7 +174,7 @@ async function acpRunExtract(clickData, tab) {
 	}
 }
 
-async function acpRunCopy(clickData, tab, selection) {
+async function acpRunCopy(ctx, clickData, tab, selection) {
 	if (!(tab?.id >= 0)) {
 		// Can not inject script, no reason to repeat.
 		return { result: "NO_TAB" };
@@ -179,11 +184,11 @@ async function acpRunCopy(clickData, tab, selection) {
 	if (frameId > 0) {
 		target.frameIds = [ frameId ];
 	};
-	const frameResult = await acpExecuteContentScript({
+	const frameResult = await ctx.abortable(acpExecuteContentScript(ctx, {
 		target,
 		func: acpContentScriptCopy,
 		args: [ selection ],
-	});
+	}));
 	if (
 		frameResult?.result === true
 		|| target.frameIds === undefined
@@ -192,14 +197,14 @@ async function acpRunCopy(clickData, tab, selection) {
 	}
 	delete target.frameIds
 	console.log("acp: retry copy through the top level frame");
-	return await acpExecuteContentScript({
+	return await ctx.abortable(acpExecuteContentScript(ctx, {
 		target,
 		func: acpContentScriptCopy,
 		args: [ selection ],
-	});
+	}));
 }
 
-async function acpCopy(clickData, tab) {
+async function acpCopy(ctx, clickData, tab) {
 	let permissionsRequest;
 	let permissionsPromise;
 	try {
@@ -222,7 +227,7 @@ async function acpCopy(clickData, tab) {
 	}
 
 	// Try to extract.
-	const extractResult = await acpRunExtract(clickData, tab);
+	const extractResult = await ctx.abortable(acpRunExtract(ctx, clickData, tab));
 
 	let selection = extractResult?.result;
 	if (typeof selection !== "string") {
@@ -254,7 +259,7 @@ async function acpCopy(clickData, tab) {
 	try {
 		if (hasBgUserActivation || withPermissions) {
 			try {
-				await navigator.clipboard.writeText(selection);
+				await ctx.abortable(navigator.clipboard.writeText(selection));
 				return;
 			} catch (error) {
 				copyBgResult = { error };
@@ -265,24 +270,29 @@ async function acpCopy(clickData, tab) {
 			}
 		}
 	} catch (ex) {
+		ctx.throwIfAborted();
 		Promise.reject(ex);
 	}
 
 	// First fallback to copy from content script.
 	let copyScriptResult;
 	try {
-		copyScriptResult = await acpRunCopy(clickData, tab, selection);
+		copyScriptResult = await acpRunCopy(ctx, clickData, tab, selection);
 		if (copyScriptResult?.result === true) {
 			return;
 		}
 	} catch (error) {
 		copyScriptResult = { error };
 	}
+	ctx.throwIfAborted();
 
 	// Wait user permissions decision.
 	try {
-		permissionsPromise = await permissionsPromise;
+		if (permissionsPromise !== undefined) {
+			permissionsPromise = await ctx.abortable(permissionsPromise);
+		}
 	} catch (ex) {
+		ctx.throwIfAborted();
 		Promise.reject(ex);
 	}
 
@@ -292,17 +302,18 @@ async function acpCopy(clickData, tab) {
 	// Retry copy from background.
 	try {
 		if (copyBgResult === undefined || !withPermissions)  {
-			await navigator.clipboard.writeText(selection);
+			await ctx.abortable(navigator.clipboard.writeText(selection));
 			return;
 		}
 	} catch (error) {
+		ctx.throwIfAborted();
 		copyBgResult = { error };
 	}
 
 	// Retry copy from content script.
 	try {
 		if (!withPermissions) {
-			copyScriptResult = await acpRunCopy(clickData, tab, selection);
+			copyScriptResult = await acpRunCopy(ctx, clickData, tab, selection);
 			if (copyScriptResult?.result === true) {
 				return;
 			}
@@ -310,6 +321,7 @@ async function acpCopy(clickData, tab) {
 	} catch (error) {
 		copyScriptResult = { error };
 	}
+	ctx.throwIfAborted();
 
 	if (permissionsPromise !== undefined && permissionsPromise !== true) {
 		console.warn("acp: permissions are not granted");
@@ -324,26 +336,31 @@ function acpReplaceSpecial(text) {
 		replace(/[\x00-\x09\x0B\x0C\x0E-\x1F\x7F-\x9F\uFEFF]/g, "\uFFFD");
 }
 
-function acpMenusListener(clickData, tab) {
-	/* Call async function through a synchronous wrapper to get error
-	 * in extension developer tools in Firefox that otherwise reported
-	 * to browser console only. Is a workaround for:
-	 * https://bugzilla.mozilla.org/1398672
-	 * "1398672 - Add test for better logging of exceptions/rejections from async event"
-	 */
-	switch (clickData.menuItemId) {
-		case "ACP_COPY":
-			acpCopy(clickData, tab).catch(ex => {
-				console.log(
-					"acpExecuteContentScript(%o, %o): exception",
-					clickData, tab);
-				throw ex;
-			});
-			break;
-		default:
-			console.error(
-				"acpMenusListener: unknown menu item: %o %o",
-				clickData.menuItemId, clickData);
+async function acpMenusListener(clickData, tab) {
+	console.assert(clickData.menuItemId === "ACP_COPY");
+	try {
+		acpAbortController?.abort(new Error("New copy requested"));
+	} catch (ex) {
+		Promise.reject(ex);
+	}
+	let controller;
+	try {
+		controller = acpAbortController = new AbortController();
+	} catch (ex) {
+		Promise.reject(ex);
+	}
+	try {
+		await new mwel.AbortableContext(controller?.signal).run(
+			ctx => acpCopy(ctx, clickData, tab));
+	} catch(ex) {
+		console.log(
+			"acpMenusListener(%o, %o): exception",
+			clickData, tab);
+		throw ex;
+	} finally {
+		if (acpAbortController === controller) {
+			acpAbortController = undefined;
+		}
 	}
 }
 
@@ -359,7 +376,12 @@ function acpMain() {
 	// in `manifest.json`, however Firefox does not support event pages,
 	// so menu entries should be created each time when add-on is loading.
 	acpMenusCreate();
-	browser.menus.onClicked.addListener(acpMenusListener);
+	/* Discard `Promise` to get error in extension developer tools in Firefox
+	 * that otherwise reported to browser console only. Is a workaround for:
+	 * https://bugzilla.mozilla.org/1398672
+	 * "1398672 - Add test for better logging of exceptions/rejections from async event"
+	 */
+	browser.menus.onClicked.addListener((clickData, tab) => void acpMenusListener(clickData, tab));
 }
 
 acpMain();

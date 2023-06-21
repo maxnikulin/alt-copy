@@ -2,6 +2,7 @@
 ICONS_SRC += icons/alt-copy-16.png icons/alt-copy-48.png
 ICONS_SRC += icons/alt-copy-32.png icons/alt-copy-96.png
 BACKGROUND_SRC = acp_cs_copy.js acp_cs_extract.js acp_background.js
+BACKGROUND_SRC += mwel_abortable.js
 LOCALE_SRC += $(wildcard _locales/*/messages.json)
 
 firefox-dist:
