@@ -5,7 +5,7 @@
 
 "use strict";
 
-async function acpContentScriptCopy(text) {
+async function acpContentScriptCopy(ctxParams, text) {
 	// See `acpContentScriptExtract` for details.
 	// Content script functions must be self-contained,
 	// so code duplication is unavoidable.
@@ -120,7 +120,8 @@ async function acpContentScriptCopy(text) {
 		}
 	}
 
-	function acpCopyUsingEvent(text) {
+	// `async` just to satisfy `AbortableContext.abortable` requiring a promise argument.
+	async function acpCopyUsingEvent(text) {
 		const log = [];
 		const entry = { method: 'document.execCommand("copy")' };
 		/* If a frame is focused then the `copy` event is fired in that frame,
@@ -193,17 +194,17 @@ async function acpContentScriptCopy(text) {
 				log.push({ ...entry, result: true });
 			}
 		} catch (ex) {
-			console.error("acp: copy using command: %o", ex);
+			console.warn("acp: copy using command: %o", ex);
 			log.push({ ...entry, error: acpErrorToObject(ex) });
 		}
 		return log;
 	}
 
 	const retval = { result: false, log: [] };
-	try {
+	async function acpCsCopy(ctx, text) {
 		for (const func of [ acpCopyNavigator, acpCopyUsingEvent ]) {
 			try {
-				const entries = await func(text);
+				const entries = await ctx.abortable(func(text));
 				if (!(Array.isArray(entries) && entries.length > 0)) {
 					throw new TypeError("Unexpected return value from " + func.name);
 				}
@@ -213,13 +214,15 @@ async function acpContentScriptCopy(text) {
 					break;
 				}
 			} catch (ex) {
-				console.error("acpContentScriptCopy: %o: %o", func?.name, ex);
+				// Firefox-102 does not allow to get `stack` in the case of `Promise.reject`.
+				console.warn("acpContentScriptCopy: %o: %o", func?.name, ex);
 				retval.log.push({ error: acpErrorToObject(ex) });
 			}
 		}
-	} catch(ex) {
-		retval.error = acpErrorToObject(ex);
 	}
-	return retval;
+	return {
+		...await mwel.csAbortableRun(ctxParams, ctx => acpCsCopy(ctx, text)),
+		...retval,
+	};
 	//# sourceURL=acp_cs_copy_func.js
 }

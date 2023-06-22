@@ -8,6 +8,10 @@
 var mwel = mwel ?? new (function mwel() {})();
 
 (function mwel_abortable(mwel) {
+	if (mwel._RejectableDeferred !== undefined) {
+		return;
+	}
+
 	class _RejectableDeferred {
 		constructor() {
 			this.promise = new Promise((_, reject) => { this.reject = reject; });
@@ -141,6 +145,79 @@ var mwel = mwel ?? new (function mwel() {})();
 			delete this._deferred;
 		}
 	}
+
+	mwel.csAbortableRun = async function csAbortableRun(props, func) {
+		const { deadline, scriptId = func.name, runId } = props;
+		if (deadline <= Date.now()) {
+			throw new Error("Content script deadline");
+		}
+		let map = mwel.abortableMap;
+		if (map == null) {
+			map = mwel.abortableMap = new Map();
+		}
+		try {
+			const controller = map.get(scriptId);
+			if (controller != null && !(controller?.runId <= runId)) {
+				throw new Error("Stale content script");
+			}
+			controller?.abort(new Error("New call requested"));
+			map.set(scriptId, null);
+		} catch (ex) {
+			Promise.reject(ex);
+		}
+		const controller = new AbortController();
+		controller.runId = runId;
+		map.set(scriptId, controller);
+		try {
+			let ctx = new mwel.AbortableContext(controller.signal);
+			if (deadline > 0) {
+				ctx = ctx.with(AbortSignal.timeout(deadline - Date.now()));
+			}
+			return { result: await ctx.run(func) };
+		} catch (ex) {
+			return { error: globalThis.mwel?.errorToObject?.(ex) ?? String(ex) };
+		} finally {
+			if (map.get(scriptId) === controller) {
+				map.set(scriptId, null);
+			}
+		}
+	};
+
+	mwel.csAbortableKill = function csAbortableKill(scriptId, runId) {
+		try {
+			const controller = mwel.abortableMap?.get(scriptId);
+			if (controller === undefined) {
+				throw new Error("Unknown scriptId: " + String(scriptId));
+			}
+			if (controller === null || runId > controller.runId) {
+				return { result: false };
+			}
+			controller.abort(new Error("Killed"));
+			mwel.abortableMap.set(scriptId, null);
+			return { result: true };
+		} catch (ex) {
+			return { error: globalThis.mwel?.errorToObject?.(ex) ?? String(ex) };
+		}
+	};
+
+	mwel.makeCsAbortableKillCallback = function makeCsAbortableKillCallback(
+		injectionTarget, scriptId, runId
+	) {
+		return async function _mwelCsKillCallback(injectionTarget, _ev) {
+			const resultArray = await browser.scripting.executeScript(injectionTarget);
+			if (typeof resultArray[0]?.result?.result !== "boolean") {
+				console.warn("mwel: failure while aborting a content script", resultArray);
+			}
+		}.bind(undefined, {
+			...injectionTarget,
+			// A wrapper function is added to have proper stack traced for
+			// the `csAbortableKill` function without `srcURL` comment
+			// that affects the whole file.
+			func: (scriptId, runId) => mwel.csAbortableKill(scriptId, runId),
+			args: [ scriptId, runId ],
+		});
+	};
+
 	Object.assign(mwel, {
 		AbortableContext,
 		_AbortableContextBase,
@@ -149,3 +226,6 @@ var mwel = mwel ?? new (function mwel() {})();
 	});
 	return mwel;
 })(mwel);
+
+// Confirm loading as a content script library.
+chrome.permissions === undefined && { result: "mwel_abortable.js" };

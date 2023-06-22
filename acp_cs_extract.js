@@ -5,7 +5,7 @@
 
 "use strict";
 
-function acpContentScriptExtract(targetElementId) {
+async function acpContentScriptExtract(ctxParams, targetElementId) {
 	const ACP_STOP = Symbol("StopIterations");
 
 	/* `acpContentScriptCopy` contains a copy of `acpErrorToObject`.
@@ -52,6 +52,12 @@ function acpContentScriptExtract(targetElementId) {
 			console.error(ex);
 			return String(ex);
 		}
+	}
+	try {
+		globalThis.mwel = globalThis.mwel ?? new (function mwel() {})();
+		globalThis.mwel.errorToObject = acpErrorToObject;
+	} catch (ex) {
+		console.warn("acp: failed to set mwel.errorToObject: %o", ex);
 	}
 
 	// `value` field is queried to support various non-text elements
@@ -236,10 +242,6 @@ function acpContentScriptExtract(targetElementId) {
 		return acpGetSelection() || "";
 	}
 
-	try {
-		return { result: acpScriptExtract(targetElementId) };
-	} catch (ex) {
-		return { error: acpErrorToObject(ex) };
-	}
+	return await mwel.csAbortableRun(ctxParams, _ctx => acpScriptExtract(targetElementId));
 	//# sourceURL=acp_cs_extract_func.js
 }

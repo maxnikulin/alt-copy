@@ -10,6 +10,12 @@ var ACP_CONTENT_SCRIPT_TIMEOUT = 768;
 
 var acpAbortController;
 
+var _acpLastId = 0;
+function acpGetId() {
+	let now = Date.now();
+	return now > _acpLastId ? (_acpLastId = now) : ++_acpLastId;
+}
+
 function acpMenusCreate() {
 	browser.menus.create(
 		{
@@ -27,38 +33,68 @@ function acpMenusCreate() {
 	);
 }
 
+async function acpExecuteContentScriptRaw(injectionTarget) {
+	const resultArray = await browser.scripting.executeScript(injectionTarget);
+	if (!Array.isArray(resultArray) || resultArray.length !== 1) {
+		console.warn(
+			"acp: scripting.executeScript(%): returned not an Array(1): %o",
+			injectionTarget, resultArray);
+		return { error: new TypeError("Unexpected executeScript return value") };
+	}
+	const injectionResult = resultArray?.[0];
+	if (injectionResult === undefined) {
+		// https://bugzilla.mozilla.org/1824901
+		// "WebExtensions scripting.executeScript() returns [undefined] array for about:debugging page"
+		return { error: new Error("Content script injection failed: privileged content") };
+	}
+	const error = injectionResult?.error;
+	if (error !== undefined) {
+		return { error };
+	}
+	const scriptResult = injectionResult?.result;
+	if (
+		scriptResult != null
+		&& typeof scriptResult === "object"
+		&& ("result" in scriptResult || "error" in scriptResult)
+	) {
+		return scriptResult;
+	} else {
+		console.warn("acp: content script return value is not result/error object: %o", scriptResult);
+		return { result: scriptResult };
+	}
+}
+
 async function acpExecuteContentScript(ctx, injectionTarget) {
 	try {
-		const resultArray = await ctx.with(AbortSignal.timeout(ACP_CONTENT_SCRIPT_TIMEOUT))
-			.abortable(browser.scripting.executeScript(injectionTarget));
-		if (!Array.isArray(resultArray) || resultArray.length !== 1) {
-			console.warn(
-				"acp: scripting.executeScript(%): returned not an Array(1): %o",
-				injectionTarget, resultArray);
-			return { error: new TypeError("Unexpected executeScript return value") };
+		const { func, args: origArgs, files, ...target } = injectionTarget;
+		ctx = ctx.with(AbortSignal.timeout(ACP_CONTENT_SCRIPT_TIMEOUT));
+		if (func === undefined) {
+			return ctx.abortable(acpExecuteContentScriptRaw(injectionTarget));
 		}
-		const injectionResult = resultArray?.[0];
-		if (injectionResult === undefined) {
-			// https://bugzilla.mozilla.org/1824901
-			// "WebExtensions scripting.executeScript() returns [undefined] array for about:debugging page"
-			return { error: new Error("Content script injection failed: privileged content") };
+		const deadline = Date.now() + ACP_CONTENT_SCRIPT_TIMEOUT;
+		const file = "mwel_abortable.js";
+		const lib = await ctx.abortable(acpExecuteContentScriptRaw({ ...target, files: [ "/" + file ]}));
+		if (lib.error) {
+			return lib;
 		}
-		const error = injectionResult?.error;
-		if (error !== undefined) {
-			return { error };
+		if (lib.result !== file) {
+			console.warn("acp: failed to load content script library", file, lib);
 		}
-		const scriptResult = injectionResult?.result;
-		if (
-			scriptResult != null
-			&& ("result" in scriptResult) || ("error" in scriptResult)
-		) {
-			return scriptResult;
-		} else {
-			console.warn("acp: content script return value is not result/error object: %o", scriptResult);
-			return { result: scriptResult };
+		const runId = acpGetId();
+		const scriptId = func.name;
+		const args = [ { scriptId, runId, deadline } ];
+		if (origArgs !== undefined) {
+			args.push(...origArgs);
 		}
-	} catch (ex) {
-		return { error: ex };
+		const cancelKill = ctx.addListener(
+			mwel.makeCsAbortableKillCallback(target, scriptId, runId));
+		try {
+			return await ctx.abortable(acpExecuteContentScriptRaw({ ...target, func, args }));
+		} finally {
+			cancelKill();
+		}
+	} catch (error) {
+		return { error };
 	}
 }
 
