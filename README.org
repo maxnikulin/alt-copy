@@ -40,6 +40,10 @@ Other options are tried if there is no "title" attribute:
 - text of an element when selection is suppressed through CSS,
 - selected text, link target, or image source if nothing "better" is available.
 
+The extension works silently. You can grant the notifications permission
+in the add-ons manager to enable desktop notification popups
+when extracting text or clipboard operations fail.
+
 The extension tries to protect you from control characters in the text
 that may cause inserting of other text than you expect. There is no
 guarantee that such protection is reliable, so beware malicious sites.
@@ -80,6 +84,11 @@ and choose this add-on to grant or to revoke optional permissions.
 
 See [[https://support.mozilla.org//kb/permission-request-messages-firefox-extensions][Permission request messages for Firefox extensions]]
 for details.
+
+** Display notifications to you (=notifications=)
+
+An optional permission. When granted, it allows the extension
+in the cases of failures.
 
 ** Access your data for all websites (=<all_urls>=)
 

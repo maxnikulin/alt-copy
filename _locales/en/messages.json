@@ -14,5 +14,51 @@
 	"copyContextMenu": {
 		"message": "Copy alt te&xt",
 		"description": "Context menu item label for web pages"
+	},
+	"notificationErrorTitle": {
+		"message": "$EXT_NAME$ Error",
+		"description": "Title of notification when an error occurs",
+		"placeholders": {
+			"ext_name": {
+				"content": "$1",
+				"example": "AltCopy"
+			}
+		}
+	},
+	"notificationWarningTitle": {
+		"message": "$EXT_NAME$ Warning",
+		"description": "Title of notification when a warning occurs, e.g. page is inaccessible for content scripts",
+		"placeholders": {
+			"ext_name": {
+				"content": "$1",
+				"example": "AltCopy"
+			}
+		}
+	},
+	"Internal error.": {
+		"message": "Internal error.",
+		"description": "Fallback error when an exception happens during generation of notification error"
+	},
+	"Element has no supported text attributes.": {
+		"message": "Element has no supported text attributes.",
+		"description": "A part of an error or warning notification when content script finds no text attributes. May be combined into `errorNotALinkOrImage`."
+	},
+	"Text extraction failed.": {
+		"message": "Text extraction failed.",
+		"description": "A part of an error or warning notification when no better message can be provided. May be combined into `errorNotALinkOrImage`."
+	},
+	"errorNotALinkOrImage": {
+		"message": "$EXTRACT_MSG$ The element is not a link, image, or media",
+		"description": "Message of error notification when no text can be copied. Additional text to content script failure.",
+		"placeholders": {
+			"extract_msg": {
+				"content": "$1",
+				"example": "Element has no supported text attributes,"
+			}
+		}
+	},
+	"errorCopy": {
+		"message": "Copy to clipboard failed. You may try to grant the clipboard permission in the add-ons manager.",
+		"description": "A part of notification that appears when clipboard operations fail. May be combined with text extraction error"
 	}
 }

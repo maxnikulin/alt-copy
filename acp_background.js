@@ -240,6 +240,33 @@ async function acpRunCopy(ctx, clickData, tab, selection) {
 	}));
 }
 
+function acpDescribeExtractFailure(extractResult, selection) {
+	if (extractResult?.result) {
+		return;
+	}
+	const error = extractResult?.error;
+	let errorMessage = typeof error === "string" ? error : error?.message;
+	if (typeof errorMessage !== "string") {
+		if (typeof extractResult?.result === "string") {
+			errorMessage = chrome.i18n.getMessage("Element has no supported text attributes.");
+		} else {
+			errorMessage = chrome.i18n.getMessage("Text extraction failed.");
+		}
+	} else {
+		errorMessage = errorMessage.substring(0, 127);
+	}
+	if (selection) {
+		return {
+			priority: "warning",
+			message: errorMessage,
+		};
+	}
+	return {
+		priority: "error",
+		message: chrome.i18n.getMessage("errorNotALinkOrImage", errorMessage),
+	};
+}
+
 async function acpCopy(ctx, clickData, tab) {
 	let permissionsRequest;
 	let permissionsPromise;
@@ -276,8 +303,17 @@ async function acpCopy(ctx, clickData, tab) {
 		selection = clickData.selectionText || clickData.linkText ||
 			clickData.linkUrl || clickData.srcUrl;
 	}
+	let extractFailureDescription;
+	try {
+		extractFailureDescription = acpDescribeExtractFailure(extractResult, selection);
+	} catch (ex) {
+		Promise.reject(ex);
+	}
 	if (!selection) {
-		throw new Error("nothing to copy");
+		return extractFailureDescription ?? {
+			priority: "error",
+			message: chrome.i18n.getMessage("Internal error."),
+		};
 	}
 	selection = acpReplaceSpecial(selection);
 
@@ -296,7 +332,7 @@ async function acpCopy(ctx, clickData, tab) {
 		if (hasBgUserActivation || withPermissions) {
 			try {
 				await ctx.abortable(navigator.clipboard.writeText(selection));
-				return;
+				return extractFailureDescription;
 			} catch (error) {
 				copyBgResult = { error };
 				if (hasBgUserActivation) {
@@ -315,7 +351,7 @@ async function acpCopy(ctx, clickData, tab) {
 	try {
 		copyScriptResult = await acpRunCopy(ctx, clickData, tab, selection);
 		if (copyScriptResult?.result === true) {
-			return;
+			return extractFailureDescription;
 		}
 	} catch (error) {
 		copyScriptResult = { error };
@@ -339,7 +375,7 @@ async function acpCopy(ctx, clickData, tab) {
 	try {
 		if (copyBgResult === undefined || !withPermissions)  {
 			await ctx.abortable(navigator.clipboard.writeText(selection));
-			return;
+			return extractFailureDescription;
 		}
 	} catch (error) {
 		ctx.throwIfAborted();
@@ -351,7 +387,7 @@ async function acpCopy(ctx, clickData, tab) {
 		if (!withPermissions) {
 			copyScriptResult = await acpRunCopy(ctx, clickData, tab, selection);
 			if (copyScriptResult?.result === true) {
-				return;
+				return extractFailureDescription;
 			}
 		}
 	} catch (error) {
@@ -364,12 +400,62 @@ async function acpCopy(ctx, clickData, tab) {
 	}
 	console.warn("acp: background copy: %o", copyBgResult);
 	console.warn("acp: content script copy: %o", copyScriptResult);
-	throw new Error("Failed to copy");
+	const extractDescription = extractFailureDescription?.message;
+	return {
+		priority: "error",
+		message: chrome.i18n.getMessage("errorCopy")
+			+ (extractDescription === undefined ? "" : "\n\n" + extractDescription),
+	};
 }
 
 function acpReplaceSpecial(text) {
 	return text.replace(/\t/g, '        ').
 		replace(/[\x00-\x09\x0B\x0C\x0E-\x1F\x7F-\x9F\uFEFF]/g, "\uFFFD");
+}
+
+function acpEscapeHTML(text) {
+	if (!text || typeof text !== "string") {
+		return undefined;
+	}
+	const div = document.createElement("div");
+	// `innerText` converts newlines to `<br>` elements.
+	div.textContent = text;
+	text = div.innerHTML;
+	div.remove();
+	return text;
+}
+
+async function acpNotify(priority, message) {
+	try {
+		if (chrome.notifications == null) {
+			return;
+		}
+		// Firefox-91 and KDE in Kubuntu-20.04 do not like when notification
+		// is sent immediately after copying text to clipboard. It causes delays
+		// during following actions and notifications shown without KDE.
+		// https://bugzilla.mozilla.org/1769930
+		await new Promise(resolve => setTimeout(resolve, 20));
+
+		const notificationId = "AltCopy-9806af17-6218-4347-810d-1489bfc214c4";
+		// Actually does not help to keep last notification only in KDE
+		// (Kubuntu-20.04 LTS focal) and Firefox-114.
+		await browser.notifications.clear(notificationId);
+		const title = chrome.i18n.getMessage(
+			priority === "warning" ? "notificationWarningTitle" : "notificationErrorTitle",
+			chrome.i18n.getMessage("extName"));
+		await browser.notifications.create(notificationId, {
+			type: "basic",
+			// Avoid unsolicited images and link in notification due to HTML markup
+			// in message subject.
+			// https://specifications.freedesktop.org/notification-spec/latest/ar01s04.html
+			// Desktop Notifications Specification :: Markup
+			title: acpEscapeHTML(title),
+			message: acpEscapeHTML(message),
+			iconUrl: browser.runtime.getURL("/icons/alt-copy-96.png"),
+		});
+	} catch (ex) {
+		Promise.reject(ex);
+	}
 }
 
 async function acpMenusListener(clickData, tab) {
@@ -386,12 +472,17 @@ async function acpMenusListener(clickData, tab) {
 		Promise.reject(ex);
 	}
 	try {
-		await new mwel.AbortableContext(controller?.signal).run(
+		const result = await new mwel.AbortableContext(controller?.signal).run(
 			ctx => acpCopy(ctx, clickData, tab));
+		if (result?.message) {
+			console.log("acpMenusListener(%o, %o): %o", clickData, tab, result.priority);
+			acpNotify(result.priority, result.message);
+		}
 	} catch(ex) {
 		console.log(
 			"acpMenusListener(%o, %o): exception",
 			clickData, tab);
+		/* no await */ acpNotify("error", String(ex.message).substring(0, 255));
 		throw ex;
 	} finally {
 		if (acpAbortController === controller) {

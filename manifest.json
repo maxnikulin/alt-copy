@@ -13,7 +13,7 @@
 	"default_locale": "en",
 	"homepage_url": "https://github.com/maxnikulin/alt-copy",
 	"permissions": [ "menus", "activeTab", "scripting" ],
-	"optional_permissions": [ "<all_urls>", "clipboardWrite" ],
+	"optional_permissions": [ "<all_urls>", "clipboardWrite", "notifications" ],
 	"background": {
 		"scripts": [
 			"mwel_abortable.js",
