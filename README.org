@@ -3,6 +3,8 @@
 
 * Copy tooltip text
 
+A helper to copy link title, "alt" image description, full timestamp, etc.
+
 Install AltCopy browser extension from
 [[https://addons.mozilla.org/firefox/addon/altcopy/][addons.mozilla.org]]
 
@@ -18,14 +20,14 @@ Full date may be shown in tooltip but it is not easy to copy it.
 "Inspect" context menu option is a rescue but it requires enough
 mouse clicks to obtain text from browser developer tools.
 This extension adds context menu entry to copy text from "title"
-attribute of HTML element directly. 
+attribute of HTML element directly.
 
 The extension adds the "Copy alt text" context menu item.
 Use mouse right click to open context menu for specific
 element of a web page. Another option is =[Menu]= or =[Shift+F10]=
 keyboard shortcuts that is useful when an element is highlighted
 in response to the "Find in page…" action (=[Ctrl+F]=, =/=) or when
-[[https://support.mozilla.org/kb/accessibility-features-firefox#w_using-a-keyboard-to-navigate-within-webpages][keyboard navigation (caret browsing)]]
+[[https://support.mozilla.org/kb/accessibility-features-firefox#w_using-a-keyboard-to-navigate-within-webpages][keyboard or cursor navigation (caret browsing)]]
 is enabled (=F7=, =accessibility.browsewithcaret= setting).
 The limitation is that images and some other elements can not be selected
 from keyboard. Do not be confused by context menu opened in the top left corner
@@ -178,4 +180,4 @@ It is not implemented in this add-on.
 
 Mozilla Public License, v. 2.0.
 
-Copyright (C) 2021 Max Nikulin
+Copyright (C) 2021-2023 Max Nikulin
