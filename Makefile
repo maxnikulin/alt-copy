@@ -9,7 +9,7 @@ firefox-dist:
 	set -e ; \
 	out="`cat manifest.json | \
 		python3 -c "import json, sys; print(json.load(sys.stdin)['version'])"`" ; \
-	file="alt-copy-$${out}.unsigned.xpi" ; \
+	file="altcopy-$${out}.unsigned.xpi" ; \
 	$(RM) "$$file" ; \
 	zip --must-match "$$file" manifest.json $(BACKGROUND_SRC) $(ICONS_SRC) $(LOCALE_SRC); \
 	echo "Created $$file"
