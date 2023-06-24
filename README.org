@@ -28,7 +28,7 @@ element of a web page. Another option is =[Menu]= or =[Shift+F10]=
 keyboard shortcuts that is useful when an element is highlighted
 in response to the "Find in page…" action (=[Ctrl+F]=, =/=) or when
 [[https://support.mozilla.org/kb/accessibility-features-firefox#w_using-a-keyboard-to-navigate-within-webpages][keyboard or cursor navigation (caret browsing)]]
-is enabled (=F7=, =accessibility.browsewithcaret= setting).
+is enabled (=[F7]= or the =accessibility.browsewithcaret= setting).
 The limitation is that images and some other elements can not be selected
 from keyboard. Do not be confused by context menu opened in the top left corner
 (Firefox [[https://bugzilla.mozilla.org/1426671][bug #1426671]]),
