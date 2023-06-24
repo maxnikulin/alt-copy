@@ -22,7 +22,7 @@
 			"acp_background.js"
 		]
 	},
-	"applications": {
+	"browser_specific_settings": {
 		"gecko": {
 			"id": "alt-copy@maxnikulin.github.io",
 			"strict_min_version": "102.0"
