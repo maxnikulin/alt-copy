@@ -59,7 +59,7 @@ of Flask framework documentation
 At first I found
 [[https://addons.mozilla.org/firefox/addon/copy-element-s-text/][Copy Element's text]]
 extension, source:
-[[https://github.com/utubo/firefox-copy_elements_text]]
+<https://github.com/utubo/firefox-copy_elements_text>
 It rates text sources to copy in a different way.
 I borrowed some ideas from it though. Implementation details differ as well.
 
@@ -172,7 +172,7 @@ Due to lack of
 (~contextMenus~) API method, it is necessary to inject
 a content script into every page frame to have active event listener
 when context menu is invoked. See
-[[https://github.com/mdn/webextensions-examples/blob/master/menu-remove-element/menusGetTargetElementPolyfill.js]]
+<https://github.com/mdn/webextensions-examples/blob/master/menu-remove-element/menusGetTargetElementPolyfill.js>
 for an example of such approach.
 It is not implemented in this add-on.
 
