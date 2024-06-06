@@ -1,7 +1,7 @@
 
 #+title: AltCopy Firefox Add-on
 
-* Copy tooltip text
+** Copy tooltip text
 
 A helper to copy link title, "alt" image description, full timestamp, etc.
 
@@ -78,7 +78,7 @@ is opened in a subframe. Currently it is not doing so, but such behavior
 may be restored in future. You may enable access to all sites, see how to
 [[https://support.mozilla.org/kb/manage-optional-permissions-extensions][manage optional permissions]].
 
-* Permissions
+** Permissions
 
 As usually, add-on requires some permission to do its job.
 Open =about:addons= page (Add-ons item in the hamburger menu, =[Ctrl+Shift+A]=)
@@ -87,12 +87,12 @@ and choose this add-on to grant or to revoke optional permissions.
 See [[https://support.mozilla.org//kb/permission-request-messages-firefox-extensions][Permission request messages for Firefox extensions]]
 for details.
 
-** Display notifications to you (=notifications=)
+*** Display notifications to you (=notifications=)
 
 An optional permission. When granted, it allows the extension
 to display a message in the case of failure.
 
-** Access your data for all websites (=<all_urls>=)
+*** Access your data for all websites (=<all_urls>=)
 
 May be necessary to extract tooltips from frames.
 Try it if you experienced issues.
@@ -112,7 +112,7 @@ some special frames
 
 This permission is rather dangerous and gives extensions a lot of power.
 
-** Input data to the clipboard (=clipboardWrite=)
+*** Input data to the clipboard (=clipboardWrite=)
 
 This permission is not required in Firefox-113,
 however in Firefox-102 the add-on may fail
@@ -133,7 +133,7 @@ at *any* moment, not only in response to user action.
 That is why I am trying to avoid making
 this permission a required one.
 
-** Access to content of the current tab (=activeTab=)
+*** Access to content of the current tab (=activeTab=)
 
 This permission does not appear in the user interface.
 
@@ -145,14 +145,14 @@ Almost unavoidable permission for this extension.
 An alternative is to ask user in response to every invocation
 from context menu.
 
-** Create context menu items (=menus=)
+*** Create context menu items (=menus=)
 
 This permission does not appear in the user interface.
 
 Mandatory permission since it is necessary to get which element
 should be inspected for alternative text somehow.
 
-** Execute JavaScript in the context of web pages (=scripting=)
+*** Execute JavaScript in the context of web pages (=scripting=)
 
 This permission does not appear in the user interface.
 
@@ -165,7 +165,7 @@ method is a better variant of
 [[https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/tabs/executeScript][tabs.executeScript]]
 however it requires additional permission.
 
-* Complications with Chrome
+** Complications with Chrome
 
 Due to lack of
 [[https://developer.mozilla.org/en-US/docs/Mozilla/Add-ons/WebExtensions/API/menus/getTargetElement][browser.menus.getTargetElement]]
@@ -176,7 +176,7 @@ when context menu is invoked. See
 for an example of such approach.
 It is not implemented in this add-on.
 
-* License
+** License
 
 Mozilla Public License, v. 2.0, see the [[file:LICENSE][LICENSE]] file.
 
