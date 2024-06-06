@@ -102,18 +102,25 @@ async function acpExecuteContentScript(ctx, injectionTarget) {
  *
  * Works in Firefox-113, but not in Firefox-102 ESR.
  *
- * Without `clipboardWrite` permission `navigator.clipboard.writeText(text)`
+ * Without the `clipboardWrite` permission `navigator.clipboard.writeText(text)`
  * and `document.execCommand("copy") work in Firefox-113 within 5 seconds
  * after `menus.onClicked`, `commands.onCommand`, or `browserAction.onClicked`
  * events are fired. In Firefox-102 `writeText` throws
  * `DOMException: Clipboard write was blocked due to lack of user activation.`
  * and `execCommand` returns `false` causing the following warning in console
  *
- *     `document.execCommand(‘cut’/‘copy’) was denied because it was not called from inside a short running user-generated event handler.
+ *     document.execCommand(‘cut’/‘copy’) was denied because it was not called from inside a short running user-generated event handler.
  *
  * https://bugzilla.mozilla.org/1835585
  *
  * `navigator.userActivation` is not supported by Firefox.
+ *
+ * Accepting or rejecting permissions request does not give
+ * another interval of user activation.
+ *
+ * https://bugzilla.mozilla.org/1838845
+ * "Accepting permissions.request does not refresh user
+ * activation for DOM API navigator.clipboard"
  */
 function acpHasDOMUserActivationInBackground() {
 	// Appeared in Firefox-112
