@@ -178,6 +178,6 @@ It is not implemented in this add-on.
 
 * License
 
-Mozilla Public License, v. 2.0.
+Mozilla Public License, v. 2.0, see the [[file:LICENSE][LICENSE]] file.
 
 Copyright (C) 2021-2023 Max Nikulin
