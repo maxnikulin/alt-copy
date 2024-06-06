@@ -90,7 +90,7 @@ for details.
 ** Display notifications to you (=notifications=)
 
 An optional permission. When granted, it allows the extension
-in the cases of failures.
+to display a message in the case of failure.
 
 ** Access your data for all websites (=<all_urls>=)
 
@@ -108,7 +108,7 @@ or when a tab is restored from cache
 
 Even having this permission the add-on may fail inside
 some special frames
-([[https://bugzilla.mozilla.org/1411641#c41][Firefox bug #1411641 comment 41]]).
+([[https://bugzilla.mozilla.org/1411641#c41][Firefox bug #1411641 comment 41]]).
 
 This permission is rather dangerous and gives extensions a lot of power.
 
